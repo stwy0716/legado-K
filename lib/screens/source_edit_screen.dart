@@ -295,7 +295,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
     _contentCallBackJs.text = _ruleValue(rc, 'callBackJs');
   }
 
-  Map<String, dynamic> _buildRule(Map<TextEditingController, String> fields) {
+  Map<String, dynamic>? _buildRule(Map<TextEditingController, String> fields) {
     final map = <String, dynamic>{};
     fields.forEach((controller, key) {
       if (controller.text.isNotEmpty) map[key] = controller.text;
@@ -574,7 +574,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
                 Navigator.pop(context);
                 await _saveSource();
                 if (mounted) {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => SourceDebugScreen(sourceUrl: _bookSourceUrl.text.trim())));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => SourceDebugScreen(source: BookSource(bookSourceUrl: _bookSourceUrl.text.trim(), bookSourceName: _bookSourceName.text.trim()))));
                 }
               },
             ),
