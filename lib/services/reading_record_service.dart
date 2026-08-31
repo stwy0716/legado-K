@@ -1,0 +1,119 @@
+import '../models/replace_rule.dart';
+import 'database_service.dart';
+
+/// 阅读记录服务
+class ReadingRecordService {
+  final DatabaseService _db = DatabaseService();
+  DateTime? _sessionStart;
+  String? _currentBook;
+  String? _currentAuthor;
+  int _sessionDuration = 0;
+
+  /// 开始阅读会话
+  void startSession(String bookName, String author) {
+    _sessionStart = DateTime.now();
+    _currentBook = bookName;
+    _currentAuthor = author;
+    _sessionDuration = 0;
+  }
+
+  /// 结束阅读会话并保存记录
+  Future<void> endSession({int? chapterIndex, String? chapterTitle, int? startPos, int? endPos}) async {
+    if (_sessionStart == null || _currentBook == null) return;
+
+    final duration = DateTime.now().difference(_sessionStart!).inSeconds;
+    if (duration < 5) {
+      // 阅读时间太短，不记录
+      _sessionStart = null;
+      return;
+    }
+
+    final record = ReadRecord(
+      bookName: _currentBook!,
+      author: _currentAuthor!,
+      duration: duration,
+      readDate: DateTime.now().millisecondsSinceEpoch,
+      chapterIndex: chapterIndex,
+      chapterTitle: chapterTitle,
+      startPos: startPos,
+      endPos: endPos,
+    );
+
+    await _db.insertReadRecord(record);
+    _sessionStart = null;
+  }
+
+  /// 获取今日阅读时长（秒）
+  Future<int> getTodayDuration() async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
+    final records = await _db.getReadRecords();
+    return records
+        .where((r) => (r.readDate ?? 0) >= startOfDay)
+        .fold<int>(0, (sum, r) => sum + (r.duration ?? 0));
+  }
+
+  /// 获取总阅读时长（秒）
+  Future<int> getTotalDuration() async {
+    final records = await _db.getReadRecords();
+    return records.fold<int>(0, (sum, r) => sum + (r.duration ?? 0));
+  }
+
+  /// 获取阅读天数
+  Future<int> getReadingDays() async {
+    final records = await _db.getReadRecords();
+    final days = <String>{};
+    for (final r in records) {
+      if (r.readDate != null) {
+        final date = DateTime.fromMillisecondsSinceEpoch(r.readDate!);
+        days.add('${date.year}-${date.month}-${date.day}');
+      }
+    }
+    return days.length;
+  }
+
+  /// 获取最近N天的阅读统计
+  Future<Map<String, int>> getRecentStats(int days) async {
+    final records = await _db.getReadRecords();
+    final result = <String, int>{};
+    final now = DateTime.now();
+
+    for (int i = 0; i < days; i++) {
+      final date = now.subtract(Duration(days: i));
+      final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      result[key] = 0;
+    }
+
+    for (final r in records) {
+      if (r.readDate != null) {
+        final date = DateTime.fromMillisecondsSinceEpoch(r.readDate!);
+        final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        if (result.containsKey(key)) {
+          result[key] = (result[key] ?? 0) + (r.duration ?? 0);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /// 获取每本书的阅读时长
+  Future<Map<String, int>> getBookStats() async {
+    final records = await _db.getReadRecords();
+    final result = <String, int>{};
+    for (final r in records) {
+      final key = '${r.bookName}_${r.author}';
+      result[key] = (result[key] ?? 0) + (r.duration ?? 0);
+    }
+    return result;
+  }
+
+  /// 格式化时长
+  static String formatDuration(int seconds) {
+    if (seconds < 60) return '${seconds}秒';
+    if (seconds < 3600) return '${seconds ~/ 60}分钟';
+    final hours = seconds ~/ 3600;
+    final minutes = (seconds % 3600) ~/ 60;
+    return '${hours}小时${minutes}分钟';
+  }
+}
