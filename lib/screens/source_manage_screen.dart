@@ -23,6 +23,10 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
   bool _isLoading = true;
   String _searchQuery = '';
   String? _selectedGroup;
+  int _sortBy = 0; // 0=手动 1=权重 2=名称 3=URL 4=更新时间 5=响应时间 6=启用
+  bool _sortAsc = true;
+  bool _selectMode = false;
+  final Set<String> _selectedIds = {};
   List<String> _groups = [];
 
   @override
@@ -54,6 +58,16 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
               s.bookSourceName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
               s.bookSourceUrl.toLowerCase().contains(_searchQuery.toLowerCase()))
           .toList();
+    }
+    // 排序
+    result = List.from(result);
+    switch (_sortBy) {
+      case 1: result.sort((a, b) => _sortAsc ? (a.weight ?? 0).compareTo(b.weight ?? 0) : (b.weight ?? 0).compareTo(a.weight ?? 0)); break;
+      case 2: result.sort((a, b) => _sortAsc ? a.bookSourceName.compareTo(b.bookSourceName) : b.bookSourceName.compareTo(a.bookSourceName)); break;
+      case 3: result.sort((a, b) => _sortAsc ? a.bookSourceUrl.compareTo(b.bookSourceUrl) : b.bookSourceUrl.compareTo(a.bookSourceUrl)); break;
+      case 4: result.sort((a, b) => _sortAsc ? (a.lastUpdateTime ?? 0).compareTo(b.lastUpdateTime ?? 0) : (b.lastUpdateTime ?? 0).compareTo(a.lastUpdateTime ?? 0)); break;
+      case 5: result.sort((a, b) => _sortAsc ? (a.respondTime ?? 0).compareTo(b.respondTime ?? 0) : (b.respondTime ?? 0).compareTo(a.respondTime ?? 0)); break;
+      case 6: result.sort((a, b) => _sortAsc ? (a.enabled ? 0 : 1).compareTo(b.enabled ? 0 : 1) : (b.enabled ? 0 : 1).compareTo(a.enabled ? 0 : 1)); break;
     }
     return result;
   }
@@ -280,12 +294,93 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
     );
   }
 
+  void _showSortDialog() {
+    const sortNames = ['手动排序', '按权重', '按名称', '按URL', '按更新时间', '按响应时间', '按启用状态'];
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('排序方式'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        ...List.generate(sortNames.length, (index) => RadioListTile<int>(
+          title: Text(sortNames[index]),
+          value: index,
+          groupValue: _sortBy,
+          onChanged: (v) => setState(() { _sortBy = v ?? 0; Navigator.pop(context); }),
+        )),
+        const Divider(),
+        SwitchListTile(title: const Text('降序排列'), value: !_sortAsc, onChanged: (v) => setState(() => _sortAsc = !v)),
+      ]),
+    ));
+  }
+
+  void _showGroupManageDialog() {
+    final controller = TextEditingController();
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('分组管理'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text('现有分组:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        ..._groups.map((g) => ListTile(
+          dense: true,
+          title: Text(g),
+          trailing: IconButton(icon: const Icon(Icons.delete, size: 18), onPressed: () async {
+            for (final s in _sources.where((s) => s.bookSourceGroup == g)) {
+              s.bookSourceGroup = null;
+              await _db.updateSource(s);
+            }
+            await _loadSources();
+            if (mounted) Navigator.pop(context);
+          }),
+        )),
+        const Divider(),
+        TextField(controller: controller, decoration: const InputDecoration(labelText: '新建分组', border: OutlineInputBorder())),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
+        FilledButton(onPressed: () async {
+          if (controller.text.trim().isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('分组"${controller.text.trim()}"已创建，在书源编辑中选择')));
+          }
+          Navigator.pop(context);
+        }, child: const Text('创建')),
+      ],
+    ));
+  }
+
+  Future<void> _batchEnable(bool enabled) async {
+    for (final id in _selectedIds) {
+      final source = _sources.where((s) => s.bookSourceUrl == id).firstOrNull;
+      if (source != null) { source.enabled = enabled; await _db.updateSource(source); }
+    }
+    await _loadSources();
+    setState(() { _selectMode = false; _selectedIds.clear(); });
+  }
+
+  Future<void> _batchDelete() async {
+    for (final id in _selectedIds) { await _db.deleteSource(id); }
+    await _loadSources();
+    setState(() { _selectMode = false; _selectedIds.clear(); });
+  }
+
+  Future<void> _batchExport() async {
+    final selected = _sources.where((s) => _selectedIds.contains(s.bookSourceUrl)).toList();
+    if (selected.isEmpty) return;
+    final jsonStr = const JsonEncoder.withIndent('  ').convert(selected.map((s) => s.toJson()).toList());
+    await Clipboard.setData(ClipboardData(text: jsonStr));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已导出${selected.length}个书源到剪贴板')));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('书源管理 (${_sources.length})'),
-        actions: [
+        title: _selectMode ? Text('已选 ${_selectedIds.length} 个') : Text('书源管理 (${_sources.length})'),
+        leading: _selectMode ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() { _selectMode = false; _selectedIds.clear(); })) : null,
+        actions: _selectMode ? [
+          IconButton(icon: const Icon(Icons.select_all), tooltip: '全选', onPressed: () => setState(() => _selectedIds.addAll(_filteredSources.map((s) => s.bookSourceUrl)))),
+          IconButton(icon: const Icon(Icons.check_circle_outline), tooltip: '启用', onPressed: () => _batchEnable(true)),
+          IconButton(icon: const Icon(Icons.remove_circle_outline), tooltip: '禁用', onPressed: () => _batchEnable(false)),
+          IconButton(icon: const Icon(Icons.ios_share), tooltip: '导出', onPressed: _batchExport),
+          IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), tooltip: '删除', onPressed: () => showDialog(context: context, builder: (context) => AlertDialog(title: const Text('删除选中'), content: Text('确定删除${_selectedIds.length}个书源吗？'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')), FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () { Navigator.pop(context); _batchDelete(); }, child: const Text('删除'))]))),
+        ] : [
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
@@ -301,22 +396,29 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
             onSelected: (value) {
               switch (value) {
                 case 'enable_all':
-                  for (final s in _sources) {
-                    s.enabled = true;
-                    _db.updateSource(s);
-                  }
+                  for (final s in _sources) { s.enabled = true; _db.updateSource(s); }
                   setState(() {});
                   break;
                 case 'disable_all':
-                  for (final s in _sources) {
-                    s.enabled = false;
-                    _db.updateSource(s);
-                  }
+                  for (final s in _sources) { s.enabled = false; _db.updateSource(s); }
                   setState(() {});
+                  break;
+                case 'select_mode':
+                  setState(() { _selectMode = true; _selectedIds.clear(); });
+                  break;
+                case 'sort':
+                  _showSortDialog();
+                  break;
+                case 'group_manage':
+                  _showGroupManageDialog();
                   break;
               }
             },
             itemBuilder: (context) => const [
+              PopupMenuItem(value: 'select_mode', child: Text('多选模式')),
+              PopupMenuItem(value: 'sort', child: Text('排序')),
+              PopupMenuItem(value: 'group_manage', child: Text('分组管理')),
+              PopupMenuDivider(),
               PopupMenuItem(value: 'enable_all', child: Text('全部启用')),
               PopupMenuItem(value: 'disable_all', child: Text('全部禁用')),
             ],
@@ -360,9 +462,13 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final source = _filteredSources[index];
+                          final selected = _selectedIds.contains(source.bookSourceUrl);
                     return Card(
+                      color: selected ? Theme.of(context).colorScheme.primaryContainer : null,
                       child: ListTile(
-                        leading: CircleAvatar(
+                        leading: _selectMode
+                            ? Checkbox(value: selected, onChanged: (_) => setState(() => selected ? _selectedIds.remove(source.bookSourceUrl) : _selectedIds.add(source.bookSourceUrl)))
+                            : CircleAvatar(
                           backgroundColor: source.enabled == true
                               ? Theme.of(context).colorScheme.primaryContainer
                               : Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -380,14 +486,18 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
                               Text('分组: ${source.bookSourceGroup}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary)),
                           ],
                         ),
-                        trailing: Switch(
+                        trailing: _selectMode ? null : Switch(
                           value: source.enabled == true,
                           onChanged: (value) => _toggleSource(source, value),
                         ),
                         onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => SourceEditScreen(source: source))).then((_) => _loadSources());
+                          if (_selectMode) {
+                            setState(() => selected ? _selectedIds.remove(source.bookSourceUrl) : _selectedIds.add(source.bookSourceUrl));
+                          } else {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => SourceEditScreen(source: source))).then((_) => _loadSources());
+                          }
                         },
-                        onLongPress: () => _showSourceOptions(source),
+                        onLongPress: () => _selectMode ? setState(() => selected ? _selectedIds.remove(source.bookSourceUrl) : _selectedIds.add(source.bookSourceUrl)) : _showSourceOptions(source),
                       ),
                     );
                   },
