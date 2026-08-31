@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import '../services/database_service.dart';
+import 'backup_screen.dart';
+import 'cache_manage_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -19,7 +22,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _showMenuOnTap = true;
   bool _showNotification = true;
   bool _landscapeLock = false;
+  bool _autoNextPage = false;
+  bool _boldText = false;
+  bool _showStatusBar = true;
+  bool _showTitle = true;
+  bool _showTime = true;
+  bool _showBattery = true;
+  bool _showPageNumber = true;
   int _preDownloadCount = 5;
+  int _textAlign = 2;
+  int _textIndent = 2;
+  int _paragraphSpacing = 1;
+  int _pageAnim = 0;
+
+  static const List<String> _pageAnimNames = ['覆盖', '仿真', '滑动', '滚动', '无动画', '上下'];
+  static const List<String> _alignNames = ['左对齐', '居中', '两端对齐'];
 
   @override
   void initState() {
@@ -37,23 +54,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showMenuOnTap = _prefs?.getBool('show_menu_on_tap') ?? true;
       _showNotification = _prefs?.getBool('show_notification') ?? true;
       _landscapeLock = _prefs?.getBool('landscape_lock') ?? false;
+      _autoNextPage = _prefs?.getBool('auto_next_page') ?? false;
+      _boldText = _prefs?.getBool('bold_text') ?? false;
+      _showStatusBar = _prefs?.getBool('show_status_bar') ?? true;
+      _showTitle = _prefs?.getBool('show_title') ?? true;
+      _showTime = _prefs?.getBool('show_time') ?? true;
+      _showBattery = _prefs?.getBool('show_battery') ?? true;
+      _showPageNumber = _prefs?.getBool('show_page_number') ?? true;
       _preDownloadCount = _prefs?.getInt('pre_download_count') ?? 5;
+      _textAlign = _prefs?.getInt('text_align') ?? 2;
+      _textIndent = _prefs?.getInt('text_indent') ?? 2;
+      _paragraphSpacing = _prefs?.getInt('paragraph_spacing') ?? 1;
+      _pageAnim = _prefs?.getInt('page_anim') ?? 0;
     });
   }
 
-  Future<void> _setBool(String key, bool value) async {
-    await _prefs?.setBool(key, value);
-    setState(() {});
+  Future<void> _saveSetting(String key, dynamic value) async {
+    if (_prefs == null) return;
+    if (value is bool) await _prefs!.setBool(key, value);
+    else if (value is int) await _prefs!.setInt(key, value);
+    else if (value is double) await _prefs!.setDouble(key, value);
+    else if (value is String) await _prefs!.setString(key, value);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.read<AppTheme>();
+    final theme = Provider.of<AppTheme>(context);
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
       body: ListView(
         children: [
-          _buildSection('外观'),
+          // 主题设置
+          _buildSectionHeader('主题设置'),
           SwitchListTile(
             title: const Text('深色模式'),
             subtitle: Text(theme.themeMode == ThemeMode.dark ? '已开启' : theme.themeMode == ThemeMode.system ? '跟随系统' : '已关闭'),
@@ -65,75 +97,160 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: theme.themeMode == ThemeMode.system,
             onChanged: (v) => theme.setThemeMode(v ? ThemeMode.system : ThemeMode.light),
           ),
-          SwitchListTile(
-            title: const Text('动态颜色'),
-            subtitle: const Text('从壁纸提取颜色'),
-            value: theme.dynamicColor,
-            onChanged: (v) => theme.setDynamicColor(v),
-          ),
           ListTile(
             title: const Text('主题色'),
-            trailing: Container(width: 24, height: 24, decoration: BoxDecoration(color: theme.seedColor, borderRadius: BorderRadius.circular(6))),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () => _showColorPicker(theme),
           ),
-          const Divider(height: 24),
-          _buildSection('通用'),
-          SwitchListTile(
-            title: const Text('自动更新'),
-            subtitle: const Text('启动时自动检查书籍更新'),
-            value: _autoUpdate,
-            onChanged: (v) { _autoUpdate = v; _setBool('auto_update', v); },
-          ),
-          SwitchListTile(
-            title: const Text('仅WiFi下更新'),
-            value: _wifiOnly,
-            onChanged: (v) { _wifiOnly = v; _setBool('wifi_only', v); },
-          ),
+          const Divider(),
+
+          // 阅读设置
+          _buildSectionHeader('阅读设置'),
           ListTile(
-            title: const Text('预下载章节数'),
-            trailing: Text('$_preDownloadCount'),
-            onTap: () => _showPreDownloadDialog(),
+            title: const Text('翻页动画'),
+            trailing: DropdownButton<int>(
+              value: _pageAnim,
+              items: List.generate(_pageAnimNames.length, (i) => DropdownMenuItem(value: i, child: Text(_pageAnimNames[i]))),
+              onChanged: (v) => setState(() { _pageAnim = v ?? 0; _saveSetting('page_anim', _pageAnim); }),
+            ),
           ),
-          const Divider(height: 24),
-          _buildSection('阅读'),
           SwitchListTile(
             title: const Text('音量键翻页'),
             value: _volumeKeyPage,
-            onChanged: (v) { _volumeKeyPage = v; _setBool('volume_key_page', v); },
+            onChanged: (v) => setState(() { _volumeKeyPage = v; _saveSetting('volume_key_page', v); }),
           ),
           SwitchListTile(
             title: const Text('保持屏幕常亮'),
             value: _keepScreenOn,
-            onChanged: (v) { _keepScreenOn = v; _setBool('keep_screen_on', v); },
+            onChanged: (v) => setState(() { _keepScreenOn = v; _saveSetting('keep_screen_on', v); }),
           ),
           SwitchListTile(
             title: const Text('点击中央显示菜单'),
             value: _showMenuOnTap,
-            onChanged: (v) { _showMenuOnTap = v; _setBool('show_menu_on_tap', v); },
+            onChanged: (v) => setState(() { _showMenuOnTap = v; _saveSetting('show_menu_on_tap', v); }),
           ),
-          const Divider(height: 24),
-          _buildSection('缓存'),
+          SwitchListTile(
+            title: const Text('自动翻页'),
+            value: _autoNextPage,
+            onChanged: (v) => setState(() { _autoNextPage = v; _saveSetting('auto_next_page', v); }),
+          ),
+          SwitchListTile(
+            title: const Text('粗体文字'),
+            value: _boldText,
+            onChanged: (v) => setState(() { _boldText = v; _saveSetting('bold_text', v); }),
+          ),
           ListTile(
+            title: const Text('对齐方式'),
+            trailing: DropdownButton<int>(
+              value: _textAlign,
+              items: List.generate(_alignNames.length, (i) => DropdownMenuItem(value: i, child: Text(_alignNames[i]))),
+              onChanged: (v) => setState(() { _textAlign = v ?? 2; _saveSetting('text_align', _textAlign); }),
+            ),
+          ),
+          ListTile(
+            title: const Text('首行缩进'),
+            trailing: DropdownButton<int>(
+              value: _textIndent,
+              items: List.generate(5, (i) => DropdownMenuItem(value: i, child: Text('${i * 2}字符'))),
+              onChanged: (v) => setState(() { _textIndent = v ?? 2; _saveSetting('text_indent', _textIndent); }),
+            ),
+          ),
+          ListTile(
+            title: const Text('段间距'),
+            trailing: DropdownButton<int>(
+              value: _paragraphSpacing,
+              items: List.generate(5, (i) => DropdownMenuItem(value: i, child: Text('$i行'))),
+              onChanged: (v) => setState(() { _paragraphSpacing = v ?? 1; _saveSetting('paragraph_spacing', _paragraphSpacing); }),
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('显示状态栏'),
+            value: _showStatusBar,
+            onChanged: (v) => setState(() { _showStatusBar = v; _saveSetting('show_status_bar', v); }),
+          ),
+          SwitchListTile(
+            title: const Text('显示标题'),
+            value: _showTitle,
+            onChanged: (v) => setState(() { _showTitle = v; _saveSetting('show_title', v); }),
+          ),
+          SwitchListTile(
+            title: const Text('显示时间'),
+            value: _showTime,
+            onChanged: (v) => setState(() { _showTime = v; _saveSetting('show_time', v); }),
+          ),
+          SwitchListTile(
+            title: const Text('显示电量'),
+            value: _showBattery,
+            onChanged: (v) => setState(() { _showBattery = v; _saveSetting('show_battery', v); }),
+          ),
+          SwitchListTile(
+            title: const Text('显示页码'),
+            value: _showPageNumber,
+            onChanged: (v) => setState(() { _showPageNumber = v; _saveSetting('show_page_number', v); }),
+          ),
+          const Divider(),
+
+          // 网络和更新
+          _buildSectionHeader('网络和更新'),
+          SwitchListTile(
+            title: const Text('自动更新'),
+            subtitle: const Text('启动时自动检查书籍更新'),
+            value: _autoUpdate,
+            onChanged: (v) => setState(() { _autoUpdate = v; _saveSetting('auto_update', v); }),
+          ),
+          SwitchListTile(
+            title: const Text('仅WiFi下更新'),
+            value: _wifiOnly,
+            onChanged: (v) => setState(() { _wifiOnly = v; _saveSetting('wifi_only', v); }),
+          ),
+          ListTile(
+            title: const Text('预下载章节数'),
+            trailing: DropdownButton<int>(
+              value: _preDownloadCount,
+              items: [0, 1, 3, 5, 10, 20].map((v) => DropdownMenuItem(value: v, child: Text('$v章'))).toList(),
+              onChanged: (v) => setState(() { _preDownloadCount = v ?? 5; _saveSetting('pre_download_count', _preDownloadCount); }),
+            ),
+          ),
+          const Divider(),
+
+          // 数据管理
+          _buildSectionHeader('数据管理'),
+          ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: const Text('备份与恢复'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupScreen())),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cleaning_services_outlined),
+            title: const Text('缓存管理'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CacheManageScreen())),
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_sweep_outlined),
             title: const Text('清除缓存'),
             subtitle: const Text('清除书籍内容缓存'),
-            trailing: const Icon(Icons.chevron_right),
             onTap: () => _showClearCacheDialog(),
           ),
-          const Divider(height: 24),
-          _buildSection('其他'),
+          const Divider(),
+
+          // 其他
+          _buildSectionHeader('其他'),
           SwitchListTile(
             title: const Text('显示通知栏'),
             value: _showNotification,
-            onChanged: (v) { _showNotification = v; _setBool('show_notification', v); },
+            onChanged: (v) => setState(() { _showNotification = v; _saveSetting('show_notification', v); }),
           ),
           SwitchListTile(
             title: const Text('横屏锁定'),
             value: _landscapeLock,
-            onChanged: (v) { _landscapeLock = v; _setBool('landscape_lock', v); },
+            onChanged: (v) => setState(() { _landscapeLock = v; _saveSetting('landscape_lock', v); }),
           ),
           ListTile(
+            leading: const Icon(Icons.info_outline),
             title: const Text('关于'),
-            subtitle: const Text('阅读 MD3 v1.0.0'),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () => _showAboutDialog(),
           ),
           const SizedBox(height: 24),
@@ -142,87 +259,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSection(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Text(title, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary)),
-    );
-  }
+  Widget _buildSectionHeader(String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+    child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+  );
 
   void _showColorPicker(AppTheme theme) {
-    final colors = [
-      const Color(0xFF6750A4), // 紫
-      const Color(0xFF006874), // 青
-      const Color(0xFF0061A4), // 蓝
-      const Color(0xFF00696B), // 绿
-      const Color(0xFF755900), // 橙
-      const Color(0xFF984061), // 粉
-      const Color(0xFF8C4000), // 棕
-      const Color(0xFF496057), // 灰绿
-    ];
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('选择主题色'),
+        title: const Text('主题色'),
         content: Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: colors.map((c) => GestureDetector(
-            onTap: () {
-              theme.setSeedColor(c);
-              Navigator.pop(context);
-            },
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: c,
-                borderRadius: BorderRadius.circular(20),
-                border: theme.seedColor == c ? Border.all(color: Colors.white, width: 3) : null,
-              ),
-            ),
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            Colors.blue, Colors.green, Colors.orange, Colors.purple, Colors.red, Colors.teal, Colors.indigo, Colors.pink,
+          ].map((color) => GestureDetector(
+            onTap: () { theme.setSeedColor(color); Navigator.pop(context); },
+            child: Container(width: 40, height: 40, decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: theme.seedColor == color ? Border.all(color: Colors.black, width: 2) : null)),
           )).toList(),
         ),
-      ),
-    );
-  }
-
-  void _showPreDownloadDialog() {
-    int value = _preDownloadCount;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('预下载章节数'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Slider(
-                value: value.toDouble(),
-                min: 0,
-                max: 20,
-                divisions: 20,
-                label: '$value',
-                onChanged: (v) => setDialogState(() => value = v.round()),
-              ),
-              Text('预下载 $value 章'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-          FilledButton(
-            onPressed: () async {
-              _preDownloadCount = value;
-              await _prefs?.setInt('pre_download_count', value);
-              if (mounted) {
-                setState(() {});
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('确定'),
-          ),
-        ],
       ),
     );
   }
@@ -232,17 +288,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('清除缓存'),
-        content: const Text('确定要清除所有书籍内容缓存吗？清除后需要重新下载。'),
+        content: const Text('确定要清除所有书籍内容缓存吗？'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除')));
-            },
-            child: const Text('清除'),
-          ),
+          FilledButton(onPressed: () async {
+            final db = DatabaseService();
+            final books = await db.getAllBooks();
+            for (final book in books) { await db.clearChapterContent(book.name, book.author); }
+            if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除'))); }
+          }, child: const Text('清除')),
         ],
       ),
     );
@@ -252,23 +306,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('关于'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('阅读 MD3', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text('版本: 1.0.0'),
-            SizedBox(height: 4),
-            Text('基于 Material Design 3 的开源阅读器'),
-            SizedBox(height: 4),
-            Text('支持 Android / iOS'),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('确定')),
-        ],
+        title: const Text('关于阅读 MD3'),
+        content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('版本: 3.26.7'),
+          SizedBox(height: 8),
+          Text('基于Legado MD3风格的跨平台阅读应用'),
+          SizedBox(height: 8),
+          Text('支持Android和iOS'),
+        ]),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('确定'))],
       ),
     );
   }
