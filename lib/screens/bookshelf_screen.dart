@@ -634,7 +634,7 @@ class _BookListItem extends StatelessWidget {
                   ],
                 ),
               ),
-              if (book.local == true)
+              if (book.local)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(color: theme.colorScheme.tertiaryContainer, borderRadius: BorderRadius.circular(4)),

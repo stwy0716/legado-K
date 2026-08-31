@@ -28,7 +28,7 @@ class AutoUpdateService {
         final book = books[i];
         onProgress?.call('正在检查: ${book.name} (${i + 1}/${books.length})');
 
-        if (book.local == true || book.origin == null) continue;
+        if (book.local || book.origin == null) continue;
         if (book.allowUpdate != true) continue;
 
         final source = sourceMap[book.origin];
@@ -73,7 +73,7 @@ class AutoUpdateService {
   Future<BookUpdateResult> updateBook(Book book) async {
     final result = BookUpdateResult();
     try {
-      if (book.local == true || book.origin == null || book.noteUrl == null) {
+      if (book.local || book.origin == null || book.noteUrl == null) {
         result.message = '本地书籍无需更新';
         return result;
       }
