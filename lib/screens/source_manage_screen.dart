@@ -154,7 +154,7 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
       }
     } else if (data is Map) {
       try {
-        final source = BookSource.fromMap(Map<String, dynamic>.from(data));
+        final source = BookSource.fromJson(Map<String, dynamic>.from(data));
         await _db.insertSource(source);
         count++;
       } catch (_) {}

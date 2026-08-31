@@ -90,7 +90,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
       final sources = await _db.getAllSources(enabled: true);
       final source = sources.where((s) => s.bookSourceUrl == widget.book.origin).firstOrNull;
       if (source != null && widget.book.noteUrl != null) {
-        final chapters = await _engine.getToc(source, widget.book.noteUrl ?? widget.book.bookUrl);
+        final chapters = await _engine.getToc(source, widget.book.noteUrl!);
         if (chapters.isNotEmpty) {
           _chapters = chapters;
           await _db.saveChapters(widget.book.name, widget.book.author, chapters);
