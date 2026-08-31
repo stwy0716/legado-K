@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/book_provider.dart';
 import '../theme/app_theme.dart';
+import 'home_screen.dart';
 import 'bookshelf_screen.dart';
 import 'discover_screen.dart';
 import 'subscribe_screen.dart';
 import 'profile_screen.dart';
+import 'local_import_screen.dart';
+import 'backup_screen.dart';
+import 'cache_manage_screen.dart';
+import 'bookmark_screen.dart';
+import 'replace_rule_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,10 +21,11 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
-  final PageController _pageController = PageController();
+  int _currentIndex = 1; // 默认书架
+  final PageController _pageController = PageController(initialPage: 1);
 
   final List<Widget> _screens = const [
+    HomeScreen(),
     BookshelfScreen(),
     DiscoverScreen(),
     SubscribeScreen(),
@@ -51,9 +58,36 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case '/local_import':
+        return MaterialPageRoute(builder: (_) => const LocalImportScreen());
+      case '/backup':
+        return MaterialPageRoute(builder: (_) => const BackupScreen());
+      case '/cache':
+        return MaterialPageRoute(builder: (_) => const CacheManageScreen());
+      case '/bookmark':
+        return MaterialPageRoute(builder: (_) => const BookmarkScreen());
+      case '/replace':
+        return MaterialPageRoute(builder: (_) => const ReplaceRuleScreen());
+      default:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return Navigator(
+      onGenerateRoute: (settings) {
+        if (settings.name == '/') {
+          return MaterialPageRoute(builder: (_) => _buildMainScaffold());
+        }
+        return _onGenerateRoute(settings);
+      },
+    );
+  }
+
+  Widget _buildMainScaffold() {
     return Scaffold(
       body: PageView(
         controller: _pageController,
@@ -64,6 +98,11 @@ class _MainScreenState extends State<MainScreen> {
         selectedIndex: _currentIndex,
         onDestinationSelected: _onItemTapped,
         destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: '首页',
+          ),
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book),
