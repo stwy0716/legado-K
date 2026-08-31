@@ -31,7 +31,7 @@ class BackupService {
 
     if (includeSources) {
       final sources = await _db.getAllSources();
-      backup['bookSources'] = sources.map((s) => s.toMap()).toList();
+      backup['bookSources'] = sources.map((s) => s.toJson()).toList();
     }
 
     if (includeReplaceRules) {
@@ -98,7 +98,7 @@ class BackupService {
       if (backup.containsKey('bookSources') && backup['bookSources'] is List) {
         for (final sourceMap in backup['bookSources']) {
           try {
-            final source = BookSource.fromMap(Map<String, dynamic>.from(sourceMap));
+            final source = BookSource.fromJson(Map<String, dynamic>.from(sourceMap));
             await _db.insertSource(source);
             result.sourcesRestored++;
           } catch (_) {
@@ -143,7 +143,7 @@ class BackupService {
 
       for (final sourceMap in sources) {
         try {
-          final source = BookSource.fromMap(Map<String, dynamic>.from(sourceMap));
+          final source = BookSource.fromJson(Map<String, dynamic>.from(sourceMap));
           await _db.insertSource(source);
           count++;
         } catch (_) {}
@@ -155,7 +155,7 @@ class BackupService {
   /// 导出书源
   Future<String> exportSources() async {
     final sources = await _db.getAllSources();
-    return jsonEncode(sources.map((s) => s.toMap()).toList());
+    return jsonEncode(sources.map((s) => s.toJson()).toList());
   }
 
   /// 导入替换规则

@@ -42,7 +42,7 @@ class _SearchScreenState extends State<SearchScreen> {
     // 并发搜索所有书源
     await Future.wait(sources.map((source) async {
       try {
-        final books = await _engine.searchBooks(source, keyword);
+        final books = await _engine.search(source, keyword);
         allResults.addAll(books);
       } catch (_) {}
     }));

@@ -15,6 +15,7 @@ class SearchBook extends Book {
     super.origin,
     super.originName,
     super.noteUrl,
+    super.bookUrl,
     super.wordCount,
     this.searchUrl,
     this.originOrder,
@@ -31,6 +32,7 @@ class SearchBook extends Book {
     origin: origin,
     originName: originName,
     noteUrl: noteUrl,
+    bookUrl: bookUrl,
     wordCount: wordCount,
   );
 }

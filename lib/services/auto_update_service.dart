@@ -36,7 +36,7 @@ class AutoUpdateService {
 
         try {
           // 获取最新目录
-          final newChapters = await _engine.getChapters(source, book.noteUrl!);
+          final newChapters = await _engine.getToc(source, book.noteUrl!);
           if (newChapters.isNotEmpty) {
             final oldChapters = await _db.getChapters(book.name, book.author);
             final oldCount = oldChapters.length;
@@ -85,7 +85,7 @@ class AutoUpdateService {
         return result;
       }
 
-      final newChapters = await _engine.getChapters(source, book.noteUrl!);
+      final newChapters = await _engine.getToc(source, book.noteUrl!);
       if (newChapters.isEmpty) {
         result.message = '获取目录失败';
         return result;

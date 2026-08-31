@@ -25,8 +25,12 @@ class DatabaseService {
     final fullPath = path.join(dbPath, 'legado_md3.db');
     return openDatabase(
       fullPath,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        await db.execute('DROP TABLE IF EXISTS book_sources');
+        await _onCreate(db, newVersion);
+      },
     );
   }
 
@@ -87,16 +91,17 @@ class DatabaseService {
         bookSourceUrl TEXT PRIMARY KEY,
         bookSourceName TEXT NOT NULL,
         bookSourceGroup TEXT,
-        bookSourceType TEXT,
+        bookSourceType INTEGER DEFAULT 0,
         bookSourceComment TEXT,
         lastUpdateTime INTEGER,
         enabled INTEGER DEFAULT 1,
-        enabledExplore INTEGER DEFAULT 1,
+        enabledExplore INTEGER DEFAULT 0,
         header TEXT,
         loginUrl TEXT,
         loginUi TEXT,
         loginCheckJs TEXT,
         bookUrlPattern TEXT,
+        charset TEXT,
         searchUrl TEXT,
         exploreUrl TEXT,
         checkKeyWord TEXT,
@@ -106,29 +111,11 @@ class DatabaseService {
         ruleToc TEXT,
         ruleContent TEXT,
         ruleImage TEXT,
-        ruleSearchAuthor TEXT,
-        ruleSearchCover TEXT,
-        ruleSearchIntro TEXT,
-        ruleSearchKind TEXT,
-        ruleSearchLastChapter TEXT,
-        ruleSearchNoteUrl TEXT,
-        ruleBookName TEXT,
-        ruleBookAuthor TEXT,
-        ruleBookCover TEXT,
-        ruleBookIntro TEXT,
-        ruleBookKind TEXT,
-        ruleBookLastChapter TEXT,
-        ruleTocName TEXT,
-        ruleTocUrl TEXT,
-        ruleTocNext TEXT,
-        ruleContentUrl TEXT,
-        ruleContentNext TEXT,
-        ruleImageUrl TEXT,
-        ruleImageStyle TEXT,
         variableComment TEXT,
         variable TEXT,
-        customOrder INTEGER,
-        respondTime INTEGER
+        customOrder INTEGER DEFAULT 0,
+        respondTime INTEGER,
+        weight INTEGER DEFAULT 0
       )
     ''');
 
@@ -216,33 +203,7 @@ class DatabaseService {
   }
 
   Future<void> _initDefaultSources(Database db) async {
-    final defaults = [
-      {
-        'bookSourceUrl': 'https://www.example.com',
-        'bookSourceName': '示例书源（请导入真实书源）',
-        'bookSourceGroup': '示例',
-        'bookSourceType': 'text',
-        'enabled': 0,
-        'enabledExplore': 0,
-        'searchUrl': 'https://www.example.com/search?key={{key}}',
-        'ruleSearch': '.result-item',
-        'ruleSearchNoteUrl': 'a@href',
-        'ruleSearchAuthor': '.author@text',
-        'ruleSearchCover': '.cover@src',
-        'ruleSearchIntro': '.intro@text',
-        'ruleBookName': '.book-name@text',
-        'ruleBookAuthor': '.book-author@text',
-        'ruleBookCover': '.book-cover@src',
-        'ruleBookIntro': '.book-intro@text',
-        'ruleToc': '.chapter-list a',
-        'ruleTocName': '@text',
-        'ruleTocUrl': '@href',
-        'ruleContent': '.content@html',
-      },
-    ];
-    for (final src in defaults) {
-      await db.insert('book_sources', src, conflictAlgorithm: ConflictAlgorithm.ignore);
-    }
+    // 不预置书源，用户自行导入
   }
 
   // Books
@@ -330,19 +291,19 @@ class DatabaseService {
       whereArgs: enabled != null ? [enabled ? 1 : 0] : null,
       orderBy: 'customOrder ASC, lastUpdateTime DESC',
     );
-    return maps.map((m) => BookSource.fromMap(m)).toList();
+    return maps.map((m) => BookSource.fromDbMap(m)).toList();
   }
 
   Future<void> insertSource(BookSource source) async {
     final db = await database;
-    await db.insert('book_sources', source.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('book_sources', source.toDbMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> updateSource(BookSource source) async {
     final db = await database;
     await db.update(
       'book_sources',
-      source.toMap(),
+      source.toDbMap(),
       where: 'bookSourceUrl = ?',
       whereArgs: [source.bookSourceUrl],
     );
