@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,19 +29,23 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Release APK
-        run: flutter build apk --release
+      - name: Build Release APK (universal)
+        run: |
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk /tmp/app-universal-release.apk
 
       - name: Build arm64 APK
-        run: flutter build apk --release --target-platform android-arm64
+        run: |
+          flutter build apk --release --target-platform android-arm64
+          cp build/app/outputs/flutter-apk/app-release.apk /tmp/app-arm64-release.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: legado-md3-apk
           path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            /tmp/app-universal-release.apk
+            /tmp/app-arm64-release.apk
           retention-days: 30
 
       - name: Generate version tag
@@ -47,15 +53,6 @@ jobs:
         run: |
           TAG="v3.26.7-$(date +%Y%m%d-%H%M%S)"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "version=$TAG" >> $GITHUB_OUTPUT
-
-      - name: Delete old prereleases
-        uses: dev-drprasad/delete-older-releases@v0.3.4
-        with:
-          keep_latest: 5
-          delete_tags: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Prerelease
         uses: softprops/action-gh-release@v1
@@ -65,18 +62,17 @@ jobs:
           body: |
             ## Legado MD3 自动构建
             
-            - 构建时间: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
             - 提交: ${{ github.sha }}
             - 分支: ${{ github.ref_name }}
             
             ### 下载
-            - `app-release.apk` - 通用版（支持所有架构）
-            - `app-arm64-v8a-release.apk` - arm64专用版（更小）
+            - `app-universal-release.apk` - 通用版（支持所有架构）
+            - `app-arm64-release.apk` - arm64专用版（更小）
             
-            > 此为自动构建的预发布版本，可能包含未完成的功能。
+            > 此为自动构建的预发布版本。
           prerelease: true
           files: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            /tmp/app-universal-release.apk
+            /tmp/app-arm64-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
