@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import '../models/book.dart';
@@ -25,10 +26,18 @@ class DatabaseService {
     final fullPath = path.join(dbPath, 'legado_md3.db');
     return openDatabase(
       fullPath,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: (db, oldVersion, newVersion) async {
+        // 重建所有表以确保结构最新
+        await db.execute('DROP TABLE IF EXISTS book_chapters');
         await db.execute('DROP TABLE IF EXISTS book_sources');
+        await db.execute('DROP TABLE IF EXISTS replace_rules');
+        await db.execute('DROP TABLE IF EXISTS read_records');
+        await db.execute('DROP TABLE IF EXISTS rss_sources');
+        await db.execute('DROP TABLE IF EXISTS rss_articles');
+        await db.execute('DROP TABLE IF EXISTS bookmarks');
+        await db.execute('DROP TABLE IF EXISTS books');
         await _onCreate(db, newVersion);
       },
     );
@@ -48,13 +57,14 @@ class DatabaseService {
         durChapterPos INTEGER DEFAULT 0,
         durChapterTime INTEGER DEFAULT 0,
         noteUrl TEXT,
+        bookUrl TEXT,
         origin TEXT,
         originName TEXT,
         tag TEXT,
         wordCount INTEGER,
         canUpdate INTEGER DEFAULT 1,
         local INTEGER DEFAULT 0,
-        type TEXT,
+        type INTEGER DEFAULT 0,
         group_name TEXT,
         order_num INTEGER,
         latestChapterTime INTEGER,
@@ -62,7 +72,7 @@ class DatabaseService {
         infoHtml TEXT,
         tocHtml TEXT,
         variable TEXT,
-        customOrder INTEGER,
+        customOrder INTEGER DEFAULT 0,
         allowUpdate INTEGER DEFAULT 1,
         fileName TEXT,
         PRIMARY KEY (name, author)
@@ -104,18 +114,24 @@ class DatabaseService {
         charset TEXT,
         searchUrl TEXT,
         exploreUrl TEXT,
+        exploreScreen TEXT,
         checkKeyWord TEXT,
         ruleSearch TEXT,
         ruleExplore TEXT,
         ruleBookInfo TEXT,
         ruleToc TEXT,
         ruleContent TEXT,
+        ruleReview TEXT,
         ruleImage TEXT,
         variableComment TEXT,
         variable TEXT,
         customOrder INTEGER DEFAULT 0,
-        respondTime INTEGER,
-        weight INTEGER DEFAULT 0
+        respondTime INTEGER DEFAULT 180000,
+        weight INTEGER DEFAULT 0,
+        coverDecodeJs TEXT,
+        eventListener INTEGER DEFAULT 0,
+        customButton INTEGER DEFAULT 0,
+        homepageModules TEXT
       )
     ''');
 
@@ -144,10 +160,6 @@ class DatabaseService {
         endPos INTEGER
       )
     ''');
-
-    await db.execute('CREATE INDEX idx_chapters_book ON book_chapters(bookName, bookAuthor)');
-    await db.execute('CREATE INDEX idx_sources_enabled ON book_sources(enabled)');
-    await db.execute('CREATE INDEX idx_records_date ON read_records(readDate)');
 
     await db.execute('''
       CREATE TABLE rss_sources (
@@ -194,23 +206,31 @@ class DatabaseService {
       )
     ''');
 
+    await db.execute('CREATE INDEX idx_chapters_book ON book_chapters(bookName, bookAuthor)');
+    await db.execute('CREATE INDEX idx_sources_enabled ON book_sources(enabled)');
+    await db.execute('CREATE INDEX idx_records_date ON read_records(readDate)');
     await db.execute('CREATE INDEX idx_rss_articles_source ON rss_articles(sourceUrl)');
     await db.execute('CREATE INDEX idx_rss_articles_date ON rss_articles(pubDate)');
     await db.execute('CREATE INDEX idx_bookmarks_book ON bookmarks(bookName, bookAuthor)');
-
-    // 初始化默认书源
-    await _initDefaultSources(db);
   }
 
-  Future<void> _initDefaultSources(Database db) async {
-    // 不预置书源，用户自行导入
-  }
+  // ==================== Books ====================
 
-  // Books
   Future<List<Book>> getAllBooks() async {
     final db = await database;
     final maps = await db.query('books', orderBy: 'customOrder ASC, lastCheckTime DESC');
     return maps.map((m) => Book.fromMap(m)).toList();
+  }
+
+  Future<Book?> getBook(String name, String author) async {
+    final db = await database;
+    final maps = await db.query(
+      'books',
+      where: 'name = ? AND author = ?',
+      whereArgs: [name, author],
+      limit: 1,
+    );
+    return maps.isNotEmpty ? Book.fromMap(maps.first) : null;
   }
 
   Future<void> insertBook(Book book) async {
@@ -232,9 +252,27 @@ class DatabaseService {
     final db = await database;
     await db.delete('books', where: 'name = ? AND author = ?', whereArgs: [name, author]);
     await db.delete('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [name, author]);
+    await db.delete('bookmarks', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [name, author]);
+    await db.delete('read_records', where: 'bookName = ? AND author = ?', whereArgs: [name, author]);
   }
 
-  // Chapters
+  Future<void> updateReadPosition(String name, String author, int chapterIndex, int pagePos, int time) async {
+    final db = await database;
+    await db.update(
+      'books',
+      {
+        'durChapterIndex': chapterIndex,
+        'durChapterPos': pagePos,
+        'durChapterTime': time,
+        'lastCheckTime': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'name = ? AND author = ?',
+      whereArgs: [name, author],
+    );
+  }
+
+  // ==================== Chapters ====================
+
   Future<List<BookChapter>> getChapters(String bookName, String bookAuthor) async {
     final db = await database;
     final maps = await db.query(
@@ -243,33 +281,17 @@ class DatabaseService {
       whereArgs: [bookName, bookAuthor],
       orderBy: 'chapter_index ASC',
     );
-    return maps.map((m) => BookChapter.fromMap({
-      ...m,
-      'index': m['chapter_index'],
-      'start': m['start_pos'],
-      'end': m['end_pos'],
-    })).toList();
+    return maps.map((m) => BookChapter.fromMap(m)).toList();
   }
 
   Future<void> saveChapters(String bookName, String bookAuthor, List<BookChapter> chapters) async {
     final db = await database;
-    await db.transaction((txn) async {
-      await txn.delete('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [bookName, bookAuthor]);
-      for (final ch in chapters) {
-        await txn.insert('book_chapters', {
-          'bookName': bookName,
-          'bookAuthor': bookAuthor,
-          'title': ch.title,
-          'url': ch.url,
-          'chapter_index': ch.index,
-          'isVolume': ch.isVolume == true ? 1 : 0,
-          'content': ch.content,
-          'start_pos': ch.start,
-          'end_pos': ch.end,
-          'variable': ch.variable,
-        });
-      }
-    });
+    await db.delete('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [bookName, bookAuthor]);
+    final batch = db.batch();
+    for (final chapter in chapters) {
+      batch.insert('book_chapters', chapter.toMap(bookName, bookAuthor));
+    }
+    await batch.commit(noResult: true);
   }
 
   Future<void> updateChapterContent(String bookName, String bookAuthor, int index, String content) async {
@@ -292,7 +314,8 @@ class DatabaseService {
     );
   }
 
-  // Book Sources
+  // ==================== Book Sources ====================
+
   Future<List<BookSource>> getAllSources({bool? enabled}) async {
     final db = await database;
     final maps = await db.query(
@@ -301,19 +324,30 @@ class DatabaseService {
       whereArgs: enabled != null ? [enabled ? 1 : 0] : null,
       orderBy: 'customOrder ASC, lastUpdateTime DESC',
     );
-    return maps.map((m) => BookSource.fromDbMap(m)).toList();
+    return maps.map((m) => BookSource.fromMap(m)).toList();
+  }
+
+  Future<BookSource?> getSource(String url) async {
+    final db = await database;
+    final maps = await db.query(
+      'book_sources',
+      where: 'bookSourceUrl = ?',
+      whereArgs: [url],
+      limit: 1,
+    );
+    return maps.isNotEmpty ? BookSource.fromMap(maps.first) : null;
   }
 
   Future<void> insertSource(BookSource source) async {
     final db = await database;
-    await db.insert('book_sources', source.toDbMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('book_sources', source.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> updateSource(BookSource source) async {
     final db = await database;
     await db.update(
       'book_sources',
-      source.toDbMap(),
+      source.toMap(),
       where: 'bookSourceUrl = ?',
       whereArgs: [source.bookSourceUrl],
     );
@@ -324,15 +358,11 @@ class DatabaseService {
     await db.delete('book_sources', where: 'bookSourceUrl = ?', whereArgs: [url]);
   }
 
-  // Replace Rules
-  Future<List<ReplaceRule>> getReplaceRules({String? scope}) async {
+  // ==================== Replace Rules ====================
+
+  Future<List<ReplaceRule>> getReplaceRules() async {
     final db = await database;
-    final maps = await db.query(
-      'replace_rules',
-      where: scope != null ? 'scope = ? OR scope IS NULL' : null,
-      whereArgs: scope != null ? [scope] : null,
-      orderBy: 'order_num ASC',
-    );
+    final maps = await db.query('replace_rules', orderBy: 'order_num ASC');
     return maps.map((m) => ReplaceRule.fromMap(m)).toList();
   }
 
@@ -343,7 +373,12 @@ class DatabaseService {
 
   Future<void> updateReplaceRule(ReplaceRule rule) async {
     final db = await database;
-    await db.update('replace_rules', rule.toMap(), where: 'id = ?', whereArgs: [rule.id]);
+    await db.update(
+      'replace_rules',
+      rule.toMap(),
+      where: 'id = ?',
+      whereArgs: [rule.id],
+    );
   }
 
   Future<void> deleteReplaceRule(int id) async {
@@ -351,48 +386,51 @@ class DatabaseService {
     await db.delete('replace_rules', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Read Records
-  Future<List<ReadRecord>> getReadRecords({int? limit}) async {
+  // ==================== Read Records ====================
+
+  Future<void> addReadRecord(String bookName, String author, int duration, int chapterIndex, String chapterTitle) async {
     final db = await database;
-    final maps = await db.query(
+    await db.insert('read_records', {
+      'bookName': bookName,
+      'author': author,
+      'duration': duration,
+      'readDate': DateTime.now().millisecondsSinceEpoch,
+      'chapterIndex': chapterIndex,
+      'chapterTitle': chapterTitle,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getReadRecords({int? limit}) async {
+    final db = await database;
+    return await db.query(
       'read_records',
       orderBy: 'readDate DESC',
       limit: limit,
     );
-    return maps.map((m) => ReadRecord.fromMap(m)).toList();
   }
 
-  Future<void> insertReadRecord(ReadRecord record) async {
+  Future<Map<String, int>> getReadingStats() async {
     final db = await database;
-    await db.insert('read_records', record.toMap());
-  }
-
-  Future<Map<String, int>> getReadingStatsByDate() async {
-    final db = await database;
-    final maps = await db.rawQuery('''
-      SELECT DATE(readDate/1000, 'unixepoch', 'localtime') as date, SUM(duration) as total
-      FROM read_records
-      WHERE readDate IS NOT NULL
-      GROUP BY date
-      ORDER BY date DESC
-      LIMIT 30
-    ''');
-    final result = <String, int>{};
-    for (final m in maps) {
-      result[m['date'] as String] = (m['total'] as int?) ?? 0;
-    }
-    return result;
-  }
-
-  // RSS Sources
-  Future<List<RssSource>> getAllRssSources({bool? enabled}) async {
-    final db = await database;
-    final maps = await db.query(
-      'rss_sources',
-      where: enabled != null ? 'enabled = ?' : null,
-      whereArgs: enabled != null ? [enabled ? 1 : 0] : null,
-      orderBy: 'lastUpdateTime DESC',
+    final totalResult = await db.rawQuery('SELECT SUM(duration) as total FROM read_records');
+    final today = DateTime.now();
+    final todayStart = DateTime(today.year, today.month, today.day).millisecondsSinceEpoch;
+    final todayResult = await db.rawQuery(
+      'SELECT SUM(duration) as total FROM read_records WHERE readDate >= ?',
+      [todayStart],
     );
+    final booksResult = await db.rawQuery('SELECT COUNT(DISTINCT bookName) as count FROM read_records');
+    return {
+      'totalMinutes': ((totalResult.first['total'] as int?) ?? 0) ~/ 60000,
+      'todayMinutes': ((todayResult.first['total'] as int?) ?? 0) ~/ 60000,
+      'bookCount': (booksResult.first['count'] as int?) ?? 0,
+    };
+  }
+
+  // ==================== RSS ====================
+
+  Future<List<RssSource>> getRssSources() async {
+    final db = await database;
+    final maps = await db.query('rss_sources', orderBy: 'lastUpdateTime DESC');
     return maps.map((m) => RssSource.fromMap(m)).toList();
   }
 
@@ -401,58 +439,55 @@ class DatabaseService {
     await db.insert('rss_sources', source.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<void> updateRssSource(RssSource source) async {
-    final db = await database;
-    await db.update('rss_sources', source.toMap(), where: 'id = ?', whereArgs: [source.id]);
-  }
-
   Future<void> deleteRssSource(int id) async {
     final db = await database;
     await db.delete('rss_sources', where: 'id = ?', whereArgs: [id]);
+    await db.delete('rss_articles', where: 'sourceUrl = (SELECT url FROM rss_sources WHERE id = ?)', whereArgs: [id]);
   }
 
-  // RSS Articles
-  Future<List<RssArticle>> getRssArticles({String? sourceUrl, bool? read, int? limit}) async {
+  Future<List<RssArticle>> getRssArticles({String? sourceUrl, bool? unreadOnly}) async {
     final db = await database;
-    final where = <String>[];
-    final args = <dynamic>[];
-    if (sourceUrl != null) { where.add('sourceUrl = ?'); args.add(sourceUrl); }
-    if (read != null) { where.add('isRead = ?'); args.add(read ? 1 : 0); }
+    String where = '';
+    List<dynamic> args = [];
+    if (sourceUrl != null) {
+      where += 'sourceUrl = ?';
+      args.add(sourceUrl);
+    }
+    if (unreadOnly == true) {
+      if (where.isNotEmpty) where += ' AND ';
+      where += 'isRead = 0';
+    }
     final maps = await db.query(
       'rss_articles',
-      where: where.isEmpty ? null : where.join(' AND '),
+      where: where.isEmpty ? null : where,
       whereArgs: args.isEmpty ? null : args,
       orderBy: 'pubDate DESC',
-      limit: limit,
+      limit: 200,
     );
     return maps.map((m) => RssArticle.fromMap(m)).toList();
   }
 
-  Future<void> insertRssArticle(RssArticle article) async {
+  Future<void> saveRssArticles(List<RssArticle> articles) async {
     final db = await database;
-    await db.insert('rss_articles', article.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
+    final batch = db.batch();
+    for (final article in articles) {
+      batch.insert('rss_articles', article.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
+    }
+    await batch.commit(noResult: true);
   }
 
-  Future<void> updateRssArticle(RssArticle article) async {
+  Future<void> markRssArticleRead(int id, bool read) async {
     final db = await database;
-    await db.update('rss_articles', article.toMap(), where: 'id = ?', whereArgs: [article.id]);
-  }
-
-  Future<void> markArticleRead(int id) async {
-    final db = await database;
-    await db.update('rss_articles', {'isRead': 1, 'readTime': DateTime.now().millisecondsSinceEpoch}, where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<int> getUnreadCount({String? sourceUrl}) async {
-    final db = await database;
-    final maps = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM rss_articles WHERE isRead = 0${sourceUrl != null ? ' AND sourceUrl = ?' : ''}',
-      sourceUrl != null ? [sourceUrl] : null,
+    await db.update(
+      'rss_articles',
+      {'isRead': read ? 1 : 0, 'readTime': DateTime.now().millisecondsSinceEpoch},
+      where: 'id = ?',
+      whereArgs: [id],
     );
-    return (maps.first['count'] as int?) ?? 0;
   }
 
-  // Bookmarks
+  // ==================== Bookmarks ====================
+
   Future<List<Map<String, dynamic>>> getBookmarks(String bookName, String bookAuthor) async {
     final db = await database;
     return await db.query(

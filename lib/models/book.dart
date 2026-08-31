@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Book {
   String name;
   String author;
@@ -6,18 +8,18 @@ class Book {
   String? kind;
   String? lastChapter;
   int? lastChapterIndex;
-  int? durChapterIndex;
-  int? durChapterPos;
-  int? durChapterTime;
+  int durChapterIndex;
+  int durChapterPos;
+  int durChapterTime;
   String? noteUrl;
   String? bookUrl;
   String? origin;
   String? originName;
   String? tag;
   int? wordCount;
-  bool? canUpdate;
-  bool? local;
-  String? type;
+  bool canUpdate;
+  bool local;
+  int type; // 0: 网络书籍 1: 本地书籍 2: 音频
   String? group;
   int? order;
   int? latestChapterTime;
@@ -26,7 +28,7 @@ class Book {
   String? tocHtml;
   String? variable;
   int? customOrder;
-  bool? allowUpdate;
+  bool allowUpdate;
   String? fileName;
 
   Book({
@@ -48,7 +50,7 @@ class Book {
     this.wordCount,
     this.canUpdate = true,
     this.local = false,
-    this.type,
+    this.type = 0,
     this.group,
     this.order,
     this.latestChapterTime,
@@ -61,7 +63,7 @@ class Book {
     this.fileName,
   });
 
-  String get uniqueKey => '${origin}_$name';
+  String get uniqueKey => '${origin ?? ''}_$name';
 
   Map<String, dynamic> toMap() => {
     'name': name,
@@ -80,18 +82,18 @@ class Book {
     'originName': originName,
     'tag': tag,
     'wordCount': wordCount,
-    'canUpdate': canUpdate == true ? 1 : 0,
-    'local': local == true ? 1 : 0,
+    'canUpdate': canUpdate ? 1 : 0,
+    'local': local ? 1 : 0,
     'type': type,
     'group_name': group,
-    'order': order,
+    'order_num': order,
     'latestChapterTime': latestChapterTime,
     'lastCheckTime': lastCheckTime,
     'infoHtml': infoHtml,
     'tocHtml': tocHtml,
     'variable': variable,
     'customOrder': customOrder,
-    'allowUpdate': allowUpdate == true ? 1 : 0,
+    'allowUpdate': allowUpdate ? 1 : 0,
     'fileName': fileName,
   };
 
@@ -112,18 +114,26 @@ class Book {
     originName: map['originName'] as String?,
     tag: map['tag'] as String?,
     wordCount: map['wordCount'] as int?,
-    canUpdate: (map['canUpdate'] as int?) == 1,
-    local: (map['local'] as int?) == 1,
-    type: map['type'] as String?,
+    canUpdate: (map['canUpdate'] as int? ?? 1) == 1,
+    local: (map['local'] as int? ?? 0) == 1,
+    type: map['type'] as int? ?? 0,
     group: map['group_name'] as String?,
-    order: map['order'] as int?,
+    order: map['order_num'] as int?,
     latestChapterTime: map['latestChapterTime'] as int?,
     lastCheckTime: map['lastCheckTime'] as int?,
     infoHtml: map['infoHtml'] as String?,
     tocHtml: map['tocHtml'] as String?,
     variable: map['variable'] as String?,
     customOrder: map['customOrder'] as int?,
-    allowUpdate: (map['allowUpdate'] as int?) == 1,
+    allowUpdate: (map['allowUpdate'] as int? ?? 1) == 1,
     fileName: map['fileName'] as String?,
   );
+
+  Map<String, dynamic> toJson() => toMap();
+
+  factory Book.fromJson(Map<String, dynamic> json) => Book.fromMap(json);
+
+  String toJsonString() => jsonEncode(toJson());
+
+  factory Book.fromJsonString(String str) => Book.fromJson(jsonDecode(str));
 }
