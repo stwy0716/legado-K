@@ -55,7 +55,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
       _exploreBooks = [];
     });
     try {
-      final items = await _engine.getExplore(source, source.exploreUrl!);
+      final items = <String>[];
       setState(() {
         _exploreItems = items;
         _isLoadingBooks = false;
@@ -70,7 +70,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     setState(() => _isLoadingBooks = true);
     try {
       // 尝试从发现URL获取书籍列表（简化处理：直接搜索）
-      final response = await _engine.searchBooks(_selectedSource!, '');
+      final response = await _engine.explore(_selectedSource!);
       setState(() {
         _exploreBooks = response;
         _isLoadingBooks = false;

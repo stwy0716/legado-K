@@ -10,6 +10,7 @@ class Book {
   int? durChapterPos;
   int? durChapterTime;
   String? noteUrl;
+  String? bookUrl;
   String? origin;
   String? originName;
   String? tag;
@@ -40,6 +41,7 @@ class Book {
     this.durChapterPos = 0,
     this.durChapterTime = 0,
     this.noteUrl,
+    this.bookUrl,
     this.origin,
     this.originName,
     this.tag,
@@ -73,6 +75,7 @@ class Book {
     'durChapterPos': durChapterPos,
     'durChapterTime': durChapterTime,
     'noteUrl': noteUrl,
+    'bookUrl': bookUrl,
     'origin': origin,
     'originName': originName,
     'tag': tag,
@@ -104,6 +107,7 @@ class Book {
     durChapterPos: map['durChapterPos'] as int? ?? 0,
     durChapterTime: map['durChapterTime'] as int? ?? 0,
     noteUrl: map['noteUrl'] as String?,
+    bookUrl: map['bookUrl'] as String?,
     origin: map['origin'] as String?,
     originName: map['originName'] as String?,
     tag: map['tag'] as String?,

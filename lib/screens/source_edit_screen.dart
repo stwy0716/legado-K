@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/book_source.dart';
 import '../services/database_service.dart';
 
+/// 书源编辑屏幕 - JSON编辑器（完全兼容原版Legado格式）
 class SourceEditScreen extends StatefulWidget {
   final BookSource? source;
   const SourceEditScreen({super.key, this.source});
@@ -10,42 +12,84 @@ class SourceEditScreen extends StatefulWidget {
   State<SourceEditScreen> createState() => _SourceEditScreenState();
 }
 
-class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  late BookSource _source;
+class _SourceEditScreenState extends State<SourceEditScreen> {
   final DatabaseService _db = DatabaseService();
+  late TextEditingController _nameController;
+  late TextEditingController _urlController;
+  late TextEditingController _groupController;
+  late TextEditingController _jsonController;
+  bool _enabled = true;
+  bool _enabledExplore = false;
+  bool _isJsonMode = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
-    _source = widget.source ??
-        BookSource(
-          bookSourceUrl: '',
-          bookSourceName: '',
-          enabled: true,
-          enabledExplore: true,
-        );
+    final s = widget.source;
+    _nameController = TextEditingController(text: s?.bookSourceName ?? '');
+    _urlController = TextEditingController(text: s?.bookSourceUrl ?? '');
+    _groupController = TextEditingController(text: s?.bookSourceGroup ?? '');
+    _enabled = s?.enabled ?? true;
+    _enabledExplore = s?.enabledExplore ?? false;
+    _jsonController = TextEditingController(
+      text: s != null ? const JsonEncoder.withIndent('  ').convert(s.toJson()) : '',
+    );
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _nameController.dispose();
+    _urlController.dispose();
+    _groupController.dispose();
+    _jsonController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    if (_source.bookSourceName.isEmpty || _source.bookSourceUrl.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请填写书源名称和URL')),
-      );
-      return;
+    try {
+      if (_isJsonMode) {
+        // JSON模式：直接解析JSON
+        final json = jsonDecode(_jsonController.text);
+        if (json is! Map<String, dynamic>) {
+          _showError('JSON格式错误：必须是对象');
+          return;
+        }
+        final source = BookSource.fromJson(json);
+        if (source.bookSourceName.isEmpty || source.bookSourceUrl.isEmpty) {
+          _showError('书源名称和URL不能为空');
+          return;
+        }
+        await _db.insertSource(source);
+      } else {
+        // 表单模式
+        if (_nameController.text.trim().isEmpty || _urlController.text.trim().isEmpty) {
+          _showError('书源名称和URL不能为空');
+          return;
+        }
+        final source = widget.source ?? BookSource(
+          bookSourceUrl: _urlController.text.trim(),
+          bookSourceName: _nameController.text.trim(),
+        );
+        source.bookSourceName = _nameController.text.trim();
+        source.bookSourceUrl = _urlController.text.trim();
+        source.bookSourceGroup = _groupController.text.trim().isEmpty ? null : _groupController.text.trim();
+        source.enabled = _enabled;
+        source.enabledExplore = _enabledExplore;
+        await _db.insertSource(source);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('保存成功')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      _showError('保存失败: $e');
     }
-    await _db.insertSource(_source);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('保存成功')));
-      Navigator.pop(context);
-    }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -54,148 +98,101 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
       appBar: AppBar(
         title: Text(widget.source == null ? '新建书源' : '编辑书源'),
         actions: [
-          IconButton(icon: const Icon(Icons.save), onPressed: _save),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: const [
-            Tab(text: '基本'),
-            Tab(text: '搜索'),
-            Tab(text: '发现'),
-            Tab(text: '详情'),
-            Tab(text: '目录/正文'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildBasicTab(),
-          _buildSearchTab(),
-          _buildExploreTab(),
-          _buildDetailTab(),
-          _buildTocContentTab(),
+          IconButton(
+            icon: Icon(_isJsonMode ? Icons.edit : Icons.code),
+            tooltip: _isJsonMode ? '表单模式' : 'JSON模式',
+            onPressed: () {
+              setState(() => _isJsonMode = !_isJsonMode);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.save),
+            onPressed: _save,
+          ),
         ],
       ),
+      body: _isJsonMode ? _buildJsonEditor() : _buildFormEditor(),
     );
   }
 
-  Widget _buildBasicTab() {
+  Widget _buildFormEditor() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _buildTextField('书源名称', _source.bookSourceName, (v) => _source.bookSourceName = v),
+        _buildTextField('书源名称 *', _nameController),
         const SizedBox(height: 12),
-        _buildTextField('书源URL', _source.bookSourceUrl, (v) => _source.bookSourceUrl = v),
+        _buildTextField('书源URL *', _urlController),
         const SizedBox(height: 12),
-        _buildTextField('书源分组', _source.bookSourceGroup ?? '', (v) => _source.bookSourceGroup = v),
-        const SizedBox(height: 12),
-        _buildTextField('书源类型', _source.bookSourceType ?? '', (v) => _source.bookSourceType = v),
-        const SizedBox(height: 12),
-        _buildTextField('备注', _source.bookSourceComment ?? '', (v) => _source.bookSourceComment = v, maxLines: 3),
-        const SizedBox(height: 12),
+        _buildTextField('书源分组', _groupController),
+        const SizedBox(height: 16),
         SwitchListTile(
           title: const Text('启用书源'),
-          value: _source.enabled == true,
-          onChanged: (v) => setState(() => _source.enabled = v),
+          value: _enabled,
+          onChanged: (v) => setState(() => _enabled = v),
         ),
         SwitchListTile(
           title: const Text('启用发现'),
-          value: _source.enabledExplore == true,
-          onChanged: (v) => setState(() => _source.enabledExplore = v),
+          value: _enabledExplore,
+          onChanged: (v) => setState(() => _enabledExplore = v),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('提示：点击右上角代码图标切换到JSON模式',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 8),
+                const Text('JSON模式可编辑完整书源规则（搜索/目录/正文等）',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildSearchTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
+  Widget _buildJsonEditor() {
+    return Column(
       children: [
-        _buildTextField('搜索地址', _source.searchUrl ?? '', (v) => _source.searchUrl = v, maxLines: 2),
-        const SizedBox(height: 12),
-        _buildTextField('搜索结果列表', _source.ruleSearch ?? '', (v) => _source.ruleSearch = v),
-        const SizedBox(height: 12),
-        _buildTextField('作者', _source.ruleSearchAuthor ?? '', (v) => _source.ruleSearchAuthor = v),
-        const SizedBox(height: 12),
-        _buildTextField('封面', _source.ruleSearchCover ?? '', (v) => _source.ruleSearchCover = v),
-        const SizedBox(height: 12),
-        _buildTextField('简介', _source.ruleSearchIntro ?? '', (v) => _source.ruleSearchIntro = v, maxLines: 2),
-        const SizedBox(height: 12),
-        _buildTextField('分类', _source.ruleSearchKind ?? '', (v) => _source.ruleSearchKind = v),
-        const SizedBox(height: 12),
-        _buildTextField('最新章节', _source.ruleSearchLastChapter ?? '', (v) => _source.ruleSearchLastChapter = v),
-        const SizedBox(height: 12),
-        _buildTextField('详情页URL', _source.ruleSearchNoteUrl ?? '', (v) => _source.ruleSearchNoteUrl = v),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: const Text(
+            '编辑书源JSON（完全兼容Legado原版格式）',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ),
+        Expanded(
+          child: TextField(
+            controller: _jsonController,
+            maxLines: null,
+            expands: true,
+            textAlignVertical: TextAlignVertical.top,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.all(16),
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildExploreTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildTextField('发现地址', _source.exploreUrl ?? '', (v) => _source.exploreUrl = v, maxLines: 2),
-        const SizedBox(height: 12),
-        _buildTextField('发现列表', _source.ruleExplore ?? '', (v) => _source.ruleExplore = v, maxLines: 2),
-      ],
-    );
-  }
-
-  Widget _buildDetailTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildTextField('书名', _source.ruleBookName ?? '', (v) => _source.ruleBookName = v),
-        const SizedBox(height: 12),
-        _buildTextField('作者', _source.ruleBookAuthor ?? '', (v) => _source.ruleBookAuthor = v),
-        const SizedBox(height: 12),
-        _buildTextField('封面', _source.ruleBookCover ?? '', (v) => _source.ruleBookCover = v),
-        const SizedBox(height: 12),
-        _buildTextField('简介', _source.ruleBookIntro ?? '', (v) => _source.ruleBookIntro = v, maxLines: 2),
-        const SizedBox(height: 12),
-        _buildTextField('分类', _source.ruleBookKind ?? '', (v) => _source.ruleBookKind = v),
-        const SizedBox(height: 12),
-        _buildTextField('最新章节', _source.ruleBookLastChapter ?? '', (v) => _source.ruleBookLastChapter = v),
-      ],
-    );
-  }
-
-  Widget _buildTocContentTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text('目录规则', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 8),
-        _buildTextField('目录列表', _source.ruleToc ?? '', (v) => _source.ruleToc = v),
-        const SizedBox(height: 12),
-        _buildTextField('章节名称', _source.ruleTocName ?? '', (v) => _source.ruleTocName = v),
-        const SizedBox(height: 12),
-        _buildTextField('章节URL', _source.ruleTocUrl ?? '', (v) => _source.ruleTocUrl = v),
-        const SizedBox(height: 12),
-        _buildTextField('目录下一页', _source.ruleTocNext ?? '', (v) => _source.ruleTocNext = v),
-        const SizedBox(height: 24),
-        const Text('正文规则', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 8),
-        _buildTextField('正文内容', _source.ruleContent ?? '', (v) => _source.ruleContent = v, maxLines: 2),
-        const SizedBox(height: 12),
-        _buildTextField('正文下一页', _source.ruleContentNext ?? '', (v) => _source.ruleContentNext = v),
-        const SizedBox(height: 12),
-        _buildTextField('图片URL', _source.ruleImageUrl ?? '', (v) => _source.ruleImageUrl = v),
-      ],
-    );
-  }
-
-  Widget _buildTextField(String label, String value, ValueChanged<String> onChanged, {int maxLines = 1}) {
-    return TextFormField(
-      initialValue: value,
+  Widget _buildTextField(String label, TextEditingController controller, {int maxLines = 1}) {
+    return TextField(
+      controller: controller,
       maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
+        isDense: true,
       ),
-      onChanged: onChanged,
     );
   }
 }
