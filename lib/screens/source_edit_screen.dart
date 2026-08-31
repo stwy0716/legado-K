@@ -620,7 +620,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
               Text('  格式: //div[@class="xxx"]'),
               SizedBox(height: 8),
               Text('JSONPath:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('  格式: $.data.list 或 $.data[0].name'),
+              Text(r'  格式: $.data.list 或 $.data[0].name'),
               SizedBox(height: 8),
               Text('正则表达式:', style: TextStyle(fontWeight: FontWeight.bold)),
               Text('  格式: @Regex:xxx 或直接写正则'),

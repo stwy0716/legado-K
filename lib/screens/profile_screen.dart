@@ -19,7 +19,7 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('我的')),
       body: ListView(
         children: [
-          _buildSectionHeader('规则分段'),
+          _buildSectionHeader(context, '规则分段'),
           _buildMenuItem(context, Icons.menu_book_outlined, '书源管理', '管理网络书源', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SourceManageScreen()))),
           _buildMenuItem(context, Icons.find_replace_outlined, '替换净化', '正文内容替换规则', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReplaceRuleScreen()))),
           _buildMenuItem(context, Icons.list_alt_outlined, 'TXT目录规则', '本地TXT目录识别', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TxtTocRuleScreen()))),
@@ -28,7 +28,7 @@ class ProfileScreen extends StatelessWidget {
 
           const Divider(),
 
-          _buildSectionHeader('其他'),
+          _buildSectionHeader(context, '其他'),
           _buildMenuItem(context, Icons.smart_toy_outlined, 'AI聊天', 'AI助手对话', () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('AI聊天功能开发中')))),
           _buildMenuItem(context, Icons.settings_outlined, '设置', '应用设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
           _buildMenuItem(context, Icons.bookmark_border, '书签', '所有书签', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookmarkScreen()))),
@@ -40,7 +40,7 @@ class ProfileScreen extends StatelessWidget {
 
           const Divider(),
 
-          _buildSectionHeader('Web服务'),
+          _buildSectionHeader(context, 'Web服务'),
           SwitchListTile(
             secondary: const Icon(Icons.web_outlined),
             title: const Text('Web服务'),
@@ -72,7 +72,7 @@ class ProfileScreen extends StatelessWidget {
     ));
   }
 
-  Widget _buildSectionHeader(String title) => Padding(
+  Widget _buildSectionHeader(BuildContext context, String title) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
     child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
   );
