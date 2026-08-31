@@ -32,7 +32,7 @@ class _TxtTocRuleScreenState extends State<TxtTocRuleScreen> {
 
   void _showEditDialog({TxtTocRule? rule}) {
     final nameController = TextEditingController(text: rule?.name ?? '');
-    final ruleController = TextEditingController(text: rule?.rule ?? '');
+    final ruleController = TextEditingController(text: rule?.chapterRule ?? '');
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
