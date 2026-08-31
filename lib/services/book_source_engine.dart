@@ -6,6 +6,7 @@ import '../models/book_source.dart';
 import '../models/search_book.dart';
 import '../models/book_chapter.dart';
 import '../models/book.dart';
+import '../models/replace_rule.dart';
 import 'replace_rule_service.dart';
 
 /// 规则类型
@@ -578,7 +579,6 @@ class BookSourceEngine {
         kind: kind,
         lastChapter: lastChapter,
         noteUrl: tocUrl, bookUrl: bookUrl,
-        tocUrl: tocUrl,
         originName: source.bookSourceName,
         origin: source.bookSourceUrl,
       );
@@ -652,7 +652,7 @@ class BookSourceEngine {
 
   /// 获取正文内容
   Future<String?> getContent(BookSource source, String contentUrl,
-      {List<Map<String, String>>? replaceRules}) async {
+      {List<ReplaceRule>? replaceRules}) async {
     if (source.ruleContent == null) return null;
 
     try {

@@ -55,7 +55,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
       _exploreBooks = [];
     });
     try {
-      final items = <String>[];
+      final items = <Map<String, String>>[];
       setState(() {
         _exploreItems = items;
         _isLoadingBooks = false;
