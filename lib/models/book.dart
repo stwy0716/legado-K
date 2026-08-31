@@ -136,4 +136,10 @@ class Book {
   String toJsonString() => jsonEncode(toJson());
 
   factory Book.fromJsonString(String str) => Book.fromJson(jsonDecode(str));
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is Book && runtimeType == other.runtimeType && name == other.name && author == other.author;
+
+  @override
+  int get hashCode => name.hashCode ^ author.hashCode;
 }
