@@ -39,7 +39,7 @@ class ReadingRecordService {
       endPos: endPos,
     );
 
-    await _db.insertReadRecord(record);
+    await _db.addReadRecord(_currentBook!, _currentAuthor!, duration, chapterIndex ?? 0, chapterTitle ?? "");
     _sessionStart = null;
   }
 

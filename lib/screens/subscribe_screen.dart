@@ -28,8 +28,8 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    _sources = await _db.getAllRssSources();
-    _articles = await _db.getRssArticles(limit: 50);
+    _sources = await _db.getRssSources();
+    _articles = await _db.getRssArticles();
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -82,7 +82,7 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
     );
     final articles = await _rssService.fetchRss(source);
     for (final article in articles) {
-      await _db.insertRssArticle(article);
+      await _db.saveRssArticles([article]);
     }
     source.lastUpdateTime = DateTime.now().millisecondsSinceEpoch;
     await _db.updateRssSource(source);
@@ -103,7 +103,7 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
       if (source.enabled != true) continue;
       final articles = await _rssService.fetchRss(source);
       for (final article in articles) {
-        await _db.insertRssArticle(article);
+        await _db.saveRssArticles([article]);
       }
       source.lastUpdateTime = DateTime.now().millisecondsSinceEpoch;
       await _db.updateRssSource(source);
