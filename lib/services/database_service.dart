@@ -282,6 +282,16 @@ class DatabaseService {
     );
   }
 
+  Future<void> clearChapterContent(String bookName, String bookAuthor) async {
+    final db = await database;
+    await db.update(
+      'book_chapters',
+      {'content': null},
+      where: 'bookName = ? AND bookAuthor = ?',
+      whereArgs: [bookName, bookAuthor],
+    );
+  }
+
   // Book Sources
   Future<List<BookSource>> getAllSources({bool? enabled}) async {
     final db = await database;
