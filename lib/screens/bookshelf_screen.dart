@@ -20,7 +20,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   final DatabaseService _db = DatabaseService();
   final BookSourceEngine _engine = BookSourceEngine();
   bool _selectMode = false;
-  final Set<String> _selectedBooks = {};
+  final Set<Book> _selectedBooks = {};
   bool _isUpdating = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -190,7 +190,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         bottom: PreferredSize(preferredSize: const Size.fromHeight(48), child: _buildGroupTabs(provider)),
       ),
       body: _isUpdating ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('正在更新...')])) : books.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.menu_book_outlined, size: 64, color: Colors.grey[400]), const SizedBox(height: 16), Text('书架为空', style: TextStyle(color: Colors.grey[600], fontSize: 16)), const SizedBox(height: 8), Text('去搜索或发现页面添加书籍', style: TextStyle(color: Colors.grey[500])), const SizedBox(height: 24), FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())), icon: const Icon(Icons.search), label: const Text('去搜索'))])) : _buildBookList(books, layout),
-      floatingActionButton: _selectMode ? FloatingActionButton.extended(onPressed: _selectedBooks.isEmpty ? null : () async { for (final key in _selectedBooks) { final parts = key.split('_'); if (parts.length >= 2) { await _db.deleteBook(parts[0], parts.sublist(1).join('_')); } } await provider.loadBooks(); setState(() { _selectMode = false; _selectedBooks.clear(); }); }, icon: const Icon(Icons.delete), label: Text('删除 (${_selectedBooks.length})'), backgroundColor: Colors.red) : null,
+      floatingActionButton: _selectMode ? FloatingActionButton.extended(onPressed: _selectedBooks.isEmpty ? null : () async { for (final book in _selectedBooks) { await _db.deleteBook(book.name, book.author); } await provider.loadBooks(); setState(() { _selectMode = false; _selectedBooks.clear(); }); }, icon: const Icon(Icons.delete), label: Text('删除 (${_selectedBooks.length})'), backgroundColor: Colors.red) : null,
     );
   }
 
@@ -212,8 +212,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   }
 
   Widget _buildListItem(Book book) {
-    final key = '${book.name}_${book.author}';
-    final selected = _selectedBooks.contains(key);
+    final selected = _selectedBooks.contains(book);
     return ListTile(
       leading: _buildCover(book, width: 50, height: 70),
       title: Text(book.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500)),
@@ -222,34 +221,32 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         const SizedBox(height: 2),
         Text(book.lastChapter ?? '暂无章节', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary)),
       ]),
-      trailing: _selectMode ? Checkbox(value: selected, onChanged: (_) => _toggleSelect(key)) : const Icon(Icons.chevron_right),
+      trailing: _selectMode ? Checkbox(value: selected, onChanged: (_) => _toggleSelect(book)) : const Icon(Icons.chevron_right),
       selected: selected,
-      onTap: () => _selectMode ? _toggleSelect(key) : Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))),
-      onLongPress: () => _selectMode ? _toggleSelect(key) : _showBookMenu(book),
+      onTap: () => _selectMode ? _toggleSelect(book) : Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))),
+      onLongPress: () => _selectMode ? _toggleSelect(book) : _showBookMenu(book),
     );
   }
 
   Widget _buildCompactListItem(Book book) {
-    final key = '${book.name}_${book.author}';
-    final selected = _selectedBooks.contains(key);
+    final selected = _selectedBooks.contains(book);
     return ListTile(
       dense: true,
       leading: _buildCover(book, width: 36, height: 50),
       title: Text(book.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
       subtitle: Text('${book.author} · ${book.lastChapter ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
-      trailing: _selectMode ? Checkbox(value: selected, onChanged: (_) => _toggleSelect(key)) : null,
+      trailing: _selectMode ? Checkbox(value: selected, onChanged: (_) => _toggleSelect(book)) : null,
       selected: selected,
-      onTap: () => _selectMode ? _toggleSelect(key) : Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))),
-      onLongPress: () => _selectMode ? _toggleSelect(key) : _showBookMenu(book),
+      onTap: () => _selectMode ? _toggleSelect(book) : Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))),
+      onLongPress: () => _selectMode ? _toggleSelect(book) : _showBookMenu(book),
     );
   }
 
   Widget _buildGridItem(Book book, {required bool compact}) {
-    final key = '${book.name}_${book.author}';
-    final selected = _selectedBooks.contains(key);
+    final selected = _selectedBooks.contains(book);
     return GestureDetector(
-      onTap: () => _selectMode ? _toggleSelect(key) : Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))),
-      onLongPress: () => _selectMode ? _toggleSelect(key) : _showBookMenu(book),
+      onTap: () => _selectMode ? _toggleSelect(book) : Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))),
+      onLongPress: () => _selectMode ? _toggleSelect(book) : _showBookMenu(book),
       child: Container(decoration: selected ? BoxDecoration(border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2), borderRadius: BorderRadius.circular(8)) : null, child: Column(children: [
         Expanded(child: _buildCover(book, width: double.infinity, height: double.infinity, radius: 8)),
         Padding(padding: EdgeInsets.all(compact ? 4 : 8), child: Text(book.name, maxLines: compact ? 1 : 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: compact ? 11 : 13))),
@@ -258,11 +255,10 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   }
 
   Widget _buildCoverItem(Book book) {
-    final key = '${book.name}_${book.author}';
-    final selected = _selectedBooks.contains(key);
+    final selected = _selectedBooks.contains(book);
     return GestureDetector(
-      onTap: () => _selectMode ? _toggleSelect(key) : Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))),
-      onLongPress: () => _selectMode ? _toggleSelect(key) : _showBookMenu(book),
+      onTap: () => _selectMode ? _toggleSelect(book) : Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))),
+      onLongPress: () => _selectMode ? _toggleSelect(book) : _showBookMenu(book),
       child: Container(decoration: selected ? BoxDecoration(border: Border.all(color: Theme.of(context).colorScheme.primary, width: 3), borderRadius: BorderRadius.circular(12)) : null, child: ClipRRect(borderRadius: BorderRadius.circular(12), child: _buildCover(book, width: double.infinity, height: double.infinity, radius: 0))),
     );
   }
@@ -280,5 +276,5 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     return Container(width: width, height: height, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(radius)), child: Center(child: Padding(padding: const EdgeInsets.all(4), child: Text(book.name, maxLines: 3, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))));
   }
 
-  void _toggleSelect(String key) => setState(() => _selectedBooks.contains(key) ? _selectedBooks.remove(key) : _selectedBooks.add(key));
+  void _toggleSelect(Book book) => setState(() => _selectedBooks.contains(book) ? _selectedBooks.remove(book) : _selectedBooks.add(book));
 }
