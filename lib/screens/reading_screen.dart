@@ -18,7 +18,8 @@ import 'book_detail_screen.dart';
 
 class ReadingScreen extends StatefulWidget {
   final Book book;
-  const ReadingScreen({super.key, required this.book});
+  final int? initialChapter;
+  const ReadingScreen({super.key, required this.book, this.initialChapter});
 
   @override
   State<ReadingScreen> createState() => _ReadingScreenState();
@@ -46,7 +47,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _currentChapterIndex = widget.book.durChapterIndex ?? 0;
+    _currentChapterIndex = widget.initialChapter ?? widget.book.durChapterIndex ?? 0;
     _recordService.startSession(widget.book.name, widget.book.author);
     _ttsService.init();
     _loadData();
