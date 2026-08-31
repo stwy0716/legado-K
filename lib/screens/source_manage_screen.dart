@@ -35,7 +35,7 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
     _sources = await _db.getAllSources();
     _groups = _sources
         .map((s) => s.bookSourceGroup)
-        .where((g) => g != null && g.isNotEmpty)
+        .whereType<String>().where((g) => g.isNotEmpty)
         .toSet()
         .toList()
       ..sort();
