@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/book_source.dart';
 import '../services/database_service.dart';
 import 'source_edit_screen.dart';
+import 'source_debug_screen.dart';
 
 class SourceManageScreen extends StatefulWidget {
   const SourceManageScreen({super.key});
@@ -449,6 +450,14 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('书源JSON已复制到剪贴板')),
                 );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bug_report),
+              title: const Text('调试书源'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => SourceDebugScreen(source: source)));
               },
             ),
             ListTile(

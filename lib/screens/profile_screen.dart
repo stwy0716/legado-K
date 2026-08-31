@@ -6,6 +6,8 @@ import 'replace_rule_screen.dart';
 import 'reading_stats_screen.dart';
 import 'settings_screen.dart';
 import 'backup_screen.dart';
+import 'bookmark_screen.dart';
+import 'cache_manage_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -37,6 +39,20 @@ class ProfileScreen extends StatelessWidget {
             title: '替换净化',
             subtitle: '管理内容替换规则',
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReplaceRuleScreen())),
+          ),
+          _buildListItem(
+            context,
+            icon: Icons.bookmark_border,
+            title: '书签',
+            subtitle: '管理所有书签',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookmarkScreen())),
+          ),
+          _buildListItem(
+            context,
+            icon: Icons.cleaning_services_outlined,
+            title: '缓存管理',
+            subtitle: '管理章节缓存',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CacheManageScreen())),
           ),
           _buildListItem(
             context,

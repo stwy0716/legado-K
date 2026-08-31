@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/book_chapter.dart';
 import '../services/tts_service.dart';
@@ -28,6 +29,9 @@ class _TtsPlayerScreenState extends State<TtsPlayerScreen> {
   double _volume = 1.0;
   List<String> _languages = [];
   String? _selectedLanguage;
+  Timer? _sleepTimer;
+  int? _sleepTimerMinutes;
+  DateTime? _sleepTimerEnd;
 
   @override
   void initState() {
@@ -143,6 +147,15 @@ class _TtsPlayerScreenState extends State<TtsPlayerScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            // 定时停止
+            TextButton.icon(
+              onPressed: _showTimerDialog,
+              icon: Icon(_sleepTimer != null ? Icons.timer_off : Icons.timer, size: 20),
+              label: Text(_sleepTimerEnd != null
+                  ? '定时中: ' + _formatRemaining()
+                  : '定时停止'),
+            ),
 
             const SizedBox(height: 32),
 
@@ -241,4 +254,100 @@ class _TtsPlayerScreenState extends State<TtsPlayerScreen> {
       ),
     );
   }
+  void _showTimerDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('定时停止', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.timer_off),
+              title: const Text('关闭定时'),
+              onTap: () {
+                _cancelTimer();
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.timer),
+              title: const Text('15分钟后'),
+              onTap: () {
+                _setTimer(15);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.timer),
+              title: const Text('30分钟后'),
+              onTap: () {
+                _setTimer(30);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.timer),
+              title: const Text('60分钟后'),
+              onTap: () {
+                _setTimer(60);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.timer),
+              title: const Text('90分钟后'),
+              onTap: () {
+                _setTimer(90);
+                Navigator.pop(context);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _setTimer(int minutes) {
+    _sleepTimer?.cancel();
+    _sleepTimerMinutes = minutes;
+    _sleepTimerEnd = DateTime.now().add(Duration(minutes: minutes));
+    _sleepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (DateTime.now().isAfter(_sleepTimerEnd!)) {
+        _cancelTimer();
+        widget.ttsService.stop();
+        if (mounted) setState(() => _isPlaying = false);
+      } else {
+        if (mounted) setState(() {});
+      }
+    });
+    setState(() {});
+  }
+
+  void _cancelTimer() {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepTimerMinutes = null;
+    _sleepTimerEnd = null;
+    if (mounted) setState(() {});
+  }
+
+  String _formatRemaining() {
+    if (_sleepTimerEnd == null) return '';
+    final remaining = _sleepTimerEnd!.difference(DateTime.now());
+    final mins = remaining.inMinutes;
+    final secs = remaining.inSeconds % 60;
+    return mins.toString().padLeft(2, '0') + ':' + secs.toString().padLeft(2, '0');
+  }
+
+  @override
+  void dispose() {
+    _sleepTimer?.cancel();
+    super.dispose();
+  }
+
 }
