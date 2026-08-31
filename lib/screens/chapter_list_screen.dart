@@ -1,36 +1,34 @@
 import 'package:flutter/material.dart';
+import '../models/book.dart';
 import '../models/book_chapter.dart';
+import '../services/database_service.dart';
+import 'reading_screen.dart';
 
 class ChapterListScreen extends StatefulWidget {
-  final List<BookChapter> chapters;
+  final Book? book;
+  final List<BookChapter>? chapters;
   final int currentIndex;
 
-  const ChapterListScreen({super.key, required this.chapters, required this.currentIndex});
+  const ChapterListScreen({super.key, this.book, this.chapters, this.currentIndex = 0});
 
   @override
   State<ChapterListScreen> createState() => _ChapterListScreenState();
 }
 
 class _ChapterListScreenState extends State<ChapterListScreen> {
+  final DatabaseService _db = DatabaseService();
   final TextEditingController _searchController = TextEditingController();
+  List<BookChapter> _allChapters = [];
   List<BookChapter> _filteredChapters = [];
+  bool _isLoading = true;
+  bool _reverse = false;
   late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
-    _filteredChapters = widget.chapters;
     _scrollController = ScrollController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.currentIndex < widget.chapters.length) {
-        final itemHeight = 56.0;
-        _scrollController.animateTo(
-          widget.currentIndex * itemHeight,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
+    _loadChapters();
   }
 
   @override
@@ -40,83 +38,101 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
     super.dispose();
   }
 
-  void _filterChapters(String query) {
-    if (query.isEmpty) {
-      _filteredChapters = widget.chapters;
-    } else {
-      _filteredChapters = widget.chapters
-          .where((c) => c.title.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+  Future<void> _loadChapters() async {
+    if (widget.chapters != null) {
+      _allChapters = widget.chapters!;
+    } else if (widget.book != null) {
+      _allChapters = await _db.getChapters(widget.book!.name, widget.book!.author);
     }
-    setState(() {});
+    _filteredChapters = _allChapters;
+    if (mounted) setState(() => _isLoading = false);
+    // 滚动到当前章节
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.currentIndex < _allChapters.length) {
+        _scrollController.animateTo(
+          widget.currentIndex * 56.0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  void _filterChapters(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredChapters = _allChapters;
+      } else {
+        _filteredChapters = _allChapters.where((c) => c.title.toLowerCase().contains(query.toLowerCase())).toList();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final chapters = _reverse ? _filteredChapters.reversed.toList() : _filteredChapters;
     return Scaffold(
       appBar: AppBar(
-        title: Text('目录 (${widget.chapters.length})'),
+        title: Text(widget.book?.name ?? '目录'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: '更新目录',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('正在更新目录...')),
-              );
-            },
+            icon: Icon(_reverse ? Icons.swap_vert : Icons.swap_vert),
+            onPressed: () => setState(() => _reverse = !_reverse),
+            tooltip: '反转顺序',
           ),
         ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: '搜索章节',
+                hintText: '搜索章节...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          _filterChapters('');
-                        },
-                      )
+                    ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); _filterChapters(''); })
                     : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                isDense: true,
               ),
               onChanged: _filterChapters,
             ),
           ),
-          Expanded(
-            child: _filteredChapters.isEmpty
-                ? Center(child: Text('未找到章节', style: TextStyle(color: Colors.grey[500])))
-                : ListView.builder(
-                    controller: _scrollController,
-                    itemCount: _filteredChapters.length,
-                    itemBuilder: (context, index) {
-                      final chapter = _filteredChapters[index];
-                      final isCurrent = chapter.index == widget.currentIndex;
-                      return ListTile(
-                        title: Text(
-                          chapter.title,
-                          style: TextStyle(
-                            color: isCurrent ? Theme.of(context).colorScheme.primary : null,
-                            fontWeight: isCurrent ? FontWeight.bold : null,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: isCurrent ? Icon(Icons.play_arrow, color: Theme.of(context).colorScheme.primary) : null,
-                        onTap: () => Navigator.pop(context, chapter.index),
-                      );
-                    },
-                  ),
-          ),
-        ],
+        ),
       ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : chapters.isEmpty
+              ? const Center(child: Text('暂无章节'))
+              : ListView.builder(
+                  controller: _scrollController,
+                  itemCount: chapters.length,
+                  itemBuilder: (context, index) {
+                    final chapter = chapters[index];
+                    final realIndex = _allChapters.indexOf(chapter);
+                    final isCurrent = realIndex == widget.currentIndex;
+                    if (chapter.isVolume) {
+                      return Container(
+                        color: Theme.of(context).colorScheme.secondaryContainer,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Text(chapter.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      );
+                    }
+                    return ListTile(
+                      dense: true,
+                      title: Text(chapter.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isCurrent ? Theme.of(context).colorScheme.primary : null, fontWeight: isCurrent ? FontWeight.bold : null)),
+                      trailing: isCurrent ? const Icon(Icons.play_arrow, size: 16) : null,
+                      onTap: () {
+                        if (widget.book != null) {
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: widget.book!, initialChapter: realIndex)));
+                        } else {
+                          Navigator.pop(context, realIndex);
+                        }
+                      },
+                    );
+                  },
+                ),
     );
   }
 }
