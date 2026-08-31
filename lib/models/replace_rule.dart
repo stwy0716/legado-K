@@ -24,7 +24,7 @@ class ReplaceRule {
     'replacement': replacement,
     'enable': enable == true ? 1 : 0,
     'scope': scope,
-    'order': order,
+    'order_num': order,
   };
 
   factory ReplaceRule.fromMap(Map<String, dynamic> map) => ReplaceRule(
@@ -34,7 +34,7 @@ class ReplaceRule {
     replacement: map['replacement'] as String,
     enable: (map['enable'] as int?) == 1,
     scope: map['scope'] as String?,
-    order: map['order'] as int?,
+    order: map['order_num'] as int? ?? map['order'] as int?,
   );
 }
 
