@@ -237,7 +237,7 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
             ],
           ),
           onTap: () async {
-            if (article.id != null) await _db.markArticleRead(article.id!);
+            if (article.id != null) await _db.markRssArticleRead(article.id!, true);
             if (article.link.isNotEmpty) {
               await launchUrl(Uri.parse(article.link), mode: LaunchMode.externalApplication);
             }

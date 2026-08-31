@@ -445,6 +445,16 @@ class DatabaseService {
     await db.delete('rss_articles', where: 'sourceUrl = (SELECT url FROM rss_sources WHERE id = ?)', whereArgs: [id]);
   }
 
+  Future<void> updateRssSource(RssSource source) async {
+    final db = await database;
+    await db.update(
+      'rss_sources',
+      source.toMap(),
+      where: 'id = ?',
+      whereArgs: [source.id],
+    );
+  }
+
   Future<List<RssArticle>> getRssArticles({String? sourceUrl, bool? unreadOnly}) async {
     final db = await database;
     String where = '';

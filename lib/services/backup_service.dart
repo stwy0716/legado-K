@@ -41,7 +41,7 @@ class BackupService {
 
     if (includeReadRecords) {
       final records = await _db.getReadRecords();
-      backup['readRecords'] = records.map((r) => r.toMap()).toList();
+      backup['readRecords'] = records;
     }
 
     return backup;

@@ -1,4 +1,3 @@
-import '../models/replace_rule.dart';
 import 'database_service.dart';
 
 /// 阅读记录服务
@@ -7,14 +6,12 @@ class ReadingRecordService {
   DateTime? _sessionStart;
   String? _currentBook;
   String? _currentAuthor;
-  int _sessionDuration = 0;
 
   /// 开始阅读会话
   void startSession(String bookName, String author) {
     _sessionStart = DateTime.now();
     _currentBook = bookName;
     _currentAuthor = author;
-    _sessionDuration = 0;
   }
 
   /// 结束阅读会话并保存记录
@@ -23,23 +20,11 @@ class ReadingRecordService {
 
     final duration = DateTime.now().difference(_sessionStart!).inSeconds;
     if (duration < 5) {
-      // 阅读时间太短，不记录
       _sessionStart = null;
       return;
     }
 
-    final record = ReadRecord(
-      bookName: _currentBook!,
-      author: _currentAuthor!,
-      duration: duration,
-      readDate: DateTime.now().millisecondsSinceEpoch,
-      chapterIndex: chapterIndex,
-      chapterTitle: chapterTitle,
-      startPos: startPos,
-      endPos: endPos,
-    );
-
-    await _db.addReadRecord(_currentBook!, _currentAuthor!, duration, chapterIndex ?? 0, chapterTitle ?? "");
+    await _db.addReadRecord(_currentBook!, _currentAuthor!, duration, chapterIndex ?? 0, chapterTitle ?? '');
     _sessionStart = null;
   }
 
@@ -49,14 +34,14 @@ class ReadingRecordService {
     final startOfDay = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
     final records = await _db.getReadRecords();
     return records
-        .where((r) => (r.readDate ?? 0) >= startOfDay)
-        .fold<int>(0, (sum, r) => sum + (r.duration ?? 0));
+        .where((r) => (r['readDate'] as int? ?? 0) >= startOfDay)
+        .fold<int>(0, (sum, r) => sum + (r['duration'] as int? ?? 0));
   }
 
   /// 获取总阅读时长（秒）
   Future<int> getTotalDuration() async {
     final records = await _db.getReadRecords();
-    return records.fold<int>(0, (sum, r) => sum + (r.duration ?? 0));
+    return records.fold<int>(0, (sum, r) => sum + (r['duration'] as int? ?? 0));
   }
 
   /// 获取阅读天数
@@ -64,8 +49,9 @@ class ReadingRecordService {
     final records = await _db.getReadRecords();
     final days = <String>{};
     for (final r in records) {
-      if (r.readDate != null) {
-        final date = DateTime.fromMillisecondsSinceEpoch(r.readDate!);
+      final readDate = r['readDate'] as int?;
+      if (readDate != null) {
+        final date = DateTime.fromMillisecondsSinceEpoch(readDate);
         days.add('${date.year}-${date.month}-${date.day}');
       }
     }
@@ -77,23 +63,21 @@ class ReadingRecordService {
     final records = await _db.getReadRecords();
     final result = <String, int>{};
     final now = DateTime.now();
-
     for (int i = 0; i < days; i++) {
       final date = now.subtract(Duration(days: i));
       final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       result[key] = 0;
     }
-
     for (final r in records) {
-      if (r.readDate != null) {
-        final date = DateTime.fromMillisecondsSinceEpoch(r.readDate!);
+      final readDate = r['readDate'] as int?;
+      if (readDate != null) {
+        final date = DateTime.fromMillisecondsSinceEpoch(readDate);
         final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
         if (result.containsKey(key)) {
-          result[key] = (result[key] ?? 0) + (r.duration ?? 0);
+          result[key] = (result[key] ?? 0) + (r['duration'] as int? ?? 0);
         }
       }
     }
-
     return result;
   }
 
@@ -102,8 +86,8 @@ class ReadingRecordService {
     final records = await _db.getReadRecords();
     final result = <String, int>{};
     for (final r in records) {
-      final key = '${r.bookName}_${r.author}';
-      result[key] = (result[key] ?? 0) + (r.duration ?? 0);
+      final key = '${r['bookName']}_${r['author']}';
+      result[key] = (result[key] ?? 0) + (r['duration'] as int? ?? 0);
     }
     return result;
   }
