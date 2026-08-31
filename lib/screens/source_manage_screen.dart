@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/book_source.dart';
 import '../services/database_service.dart';
 import 'source_edit_screen.dart';
@@ -19,6 +21,8 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
   List<BookSource> _sources = [];
   bool _isLoading = true;
   String _searchQuery = '';
+  String? _selectedGroup;
+  List<String> _groups = [];
 
   @override
   void initState() {
@@ -29,16 +33,28 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
   Future<void> _loadSources() async {
     setState(() => _isLoading = true);
     _sources = await _db.getAllSources();
+    _groups = _sources
+        .map((s) => s.bookSourceGroup)
+        .where((g) => g != null && g.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
     if (mounted) setState(() => _isLoading = false);
   }
 
   List<BookSource> get _filteredSources {
-    if (_searchQuery.isEmpty) return _sources;
-    return _sources
-        .where((s) =>
-            s.bookSourceName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            s.bookSourceUrl.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
+    var result = _sources;
+    if (_selectedGroup != null) {
+      result = result.where((s) => s.bookSourceGroup == _selectedGroup).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      result = result
+          .where((s) =>
+              s.bookSourceName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              s.bookSourceUrl.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
+    }
+    return result;
   }
 
   Future<void> _toggleSource(BookSource source, bool enabled) async {
@@ -80,12 +96,30 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.content_paste),
+              title: const Text('剪贴板导入'),
+              subtitle: const Text('从剪贴板粘贴书源JSON'),
+              onTap: () {
+                Navigator.pop(context);
+                _importFromClipboard();
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.folder_open),
               title: const Text('本地导入'),
               subtitle: const Text('从JSON文件导入'),
               onTap: () {
                 Navigator.pop(context);
                 _importFromFile();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.ios_share),
+              title: const Text('导出书源'),
+              subtitle: const Text('导出所有书源为JSON'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportSources();
               },
             ),
           ],
@@ -135,6 +169,64 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('导入失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _importFromClipboard() async {
+    try {
+      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+      if (clipboardData == null || clipboardData.text == null || clipboardData.text!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('剪贴板为空')),
+        );
+        return;
+      }
+      final data = jsonDecode(clipboardData.text!);
+      int count = await _importSourcesFromData(data);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('成功导入 $count 个书源')),
+        );
+      }
+      _loadSources();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导入失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportSources() async {
+    try {
+      final sources = await _db.getAllSources();
+      if (sources.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('没有可导出的书源')),
+        );
+        return;
+      }
+      final jsonStr = const JsonEncoder.withIndent('  ').convert(
+        sources.map((s) => s.toJson()).toList(),
+      );
+      // 复制到剪贴板
+      await Clipboard.setData(ClipboardData(text: jsonStr));
+      // 同时分享
+      final tempFile = File('${Directory.systemTemp.path}/book_sources.json');
+      await tempFile.writeAsString(jsonStr);
+      await Share.shareXFiles([XFile(tempFile.path)], text: 'Legado书源导出 (${sources.length}个)');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已导出 ${sources.length} 个书源（已复制到剪贴板）')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导出失败: $e')),
         );
       }
     }
@@ -230,16 +322,43 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _filteredSources.isEmpty
-              ? _buildEmptyState()
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _filteredSources.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final source = _filteredSources[index];
+      body: Column(
+        children: [
+          if (_groups.isNotEmpty)
+            Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  FilterChip(
+                    label: const Text('全部'),
+                    selected: _selectedGroup == null,
+                    onSelected: (_) => setState(() => _selectedGroup = null),
+                  ),
+                  const SizedBox(width: 8),
+                  ..._groups.map((g) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(g),
+                      selected: _selectedGroup == g,
+                      onSelected: (_) => setState(() => _selectedGroup = g),
+                    ),
+                  )),
+                ],
+              ),
+            ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredSources.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _filteredSources.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final source = _filteredSources[index];
                     return Card(
                       child: ListTile(
                         leading: CircleAvatar(
@@ -272,6 +391,9 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
                     );
                   },
                 ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddMenu,
         child: const Icon(Icons.add),
@@ -310,8 +432,28 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
               },
             ),
             ListTile(
+              leading: Icon(source.enabled == true ? Icons.toggle_off : Icons.toggle_on),
+              title: Text(source.enabled == true ? '禁用' : '启用'),
+              onTap: () {
+                Navigator.pop(context);
+                _toggleSource(source, !(source.enabled == true));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.content_copy),
+              title: const Text('复制书源JSON'),
+              onTap: () async {
+                Navigator.pop(context);
+                final jsonStr = const JsonEncoder.withIndent('  ').convert(source.toJson());
+                await Clipboard.setData(ClipboardData(text: jsonStr));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('书源JSON已复制到剪贴板')),
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: const Text('删除'),
+              title: const Text('删除', style: TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
                 _deleteSource(source);

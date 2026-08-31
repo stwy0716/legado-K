@@ -827,6 +827,44 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
               value: context.read<ReadProvider>().config.pageNumberVisibility,
               onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.pageNumberVisibility = value),
             ),
+            SwitchListTile(
+              title: const Text('自动翻页'),
+              value: context.read<ReadProvider>().config.autoNextPage,
+              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.autoNextPage = value),
+            ),
+            SwitchListTile(
+              title: const Text('粗体文字'),
+              value: context.read<ReadProvider>().config.boldText,
+              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.boldText = value),
+            ),
+            ListTile(
+              title: const Text('对齐方式'),
+              trailing: DropdownButton<int>(
+                value: context.watch<ReadProvider>().config.textAlign,
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('左对齐')),
+                  DropdownMenuItem(value: 1, child: Text('居中')),
+                  DropdownMenuItem(value: 2, child: Text('两端对齐')),
+                ],
+                onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.textAlign = v ?? 2),
+              ),
+            ),
+            ListTile(
+              title: const Text('首行缩进'),
+              trailing: DropdownButton<int>(
+                value: context.watch<ReadProvider>().config.textIndent,
+                items: List.generate(5, (i) => DropdownMenuItem(value: i, child: Text('${i * 2}字符'))),
+                onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.textIndent = v ?? 2),
+              ),
+            ),
+            ListTile(
+              title: const Text('段间距'),
+              trailing: DropdownButton<int>(
+                value: context.watch<ReadProvider>().config.paragraphSpacing,
+                items: List.generate(5, (i) => DropdownMenuItem(value: i, child: Text('$i行'))),
+                onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.paragraphSpacing = v ?? 1),
+              ),
+            ),
           ],
         ),
       ),
