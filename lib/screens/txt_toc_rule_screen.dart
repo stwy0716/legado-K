@@ -23,9 +23,9 @@ class _TxtTocRuleScreenState extends State<TxtTocRuleScreen> {
   Future<void> _loadRules() async {
     // 从数据库或预定义加载
     _rules = [
-      TxtTocRule(id: 1, name: '默认规则', rule: r'^第[0-9零一二三四五六七八九十百千万]+[章节回卷集部篇].*', enabled: true),
-      TxtTocRule(id: 2, name: '简单章节', rule: r'^第\d+章.*', enabled: false),
-      TxtTocRule(id: 3, name: '中文数字', rule: r'^第[零一二三四五六七八九十百千万]+章.*', enabled: false),
+      TxtTocRule(id: 1, name: '默认规则', chapterRule: r'^第[0-9零一二三四五六七八九十百千万]+[章节回卷集部篇].*', enable: true),
+      TxtTocRule(id: 2, name: '简单章节', chapterRule: r'^第\d+章.*', enable: false),
+      TxtTocRule(id: 3, name: '中文数字', chapterRule: r'^第[零一二三四五六七八九十百千万]+章.*', enable: false),
     ];
     setState(() => _isLoading = false);
   }
@@ -47,10 +47,10 @@ class _TxtTocRuleScreenState extends State<TxtTocRuleScreen> {
           FilledButton(onPressed: () {
             setState(() {
               if (rule == null) {
-                _rules.add(TxtTocRule(id: DateTime.now().millisecondsSinceEpoch, name: nameController.text, rule: ruleController.text, enabled: true));
+                _rules.add(TxtTocRule(id: DateTime.now().millisecondsSinceEpoch, name: nameController.text, chapterRule: ruleController.text, enable: true));
               } else {
                 final index = _rules.indexWhere((r) => r.id == rule.id);
-                if (index >= 0) _rules[index] = TxtTocRule(id: rule.id, name: nameController.text, rule: ruleController.text, enabled: rule.enabled);
+                if (index >= 0) _rules[index] = TxtTocRule(id: rule.id, name: nameController.text, chapterRule: ruleController.text, enable: rule.enable);
               }
             });
             Navigator.pop(context);
@@ -76,10 +76,10 @@ class _TxtTocRuleScreenState extends State<TxtTocRuleScreen> {
                     final rule = _rules[index];
                     return ListTile(
                       title: Text(rule.name),
-                      subtitle: Text(rule.rule, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                      subtitle: Text(rule.chapterRule, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
                       trailing: Switch(
-                        value: rule.enabled,
-                        onChanged: (v) => setState(() => _rules[index] = TxtTocRule(id: rule.id, name: rule.name, rule: rule.rule, enabled: v)),
+                        value: rule.enable,
+                        onChanged: (v) => setState(() => _rules[index] = TxtTocRule(id: rule.id, name: rule.name, chapterRule: rule.chapterRule, enable: v)),
                       ),
                       onTap: () => _showEditDialog(rule: rule),
                       onLongPress: () => showDialog(
