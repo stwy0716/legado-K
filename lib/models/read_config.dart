@@ -26,6 +26,7 @@ class ReadConfig {
   int autoNextPageSpeed;
   bool keepScreenOn;
   bool showMenuOnTap;
+  bool eyeProtection;
   int paddingLeft;
   int paddingRight;
   int paddingTop;
@@ -71,6 +72,7 @@ class ReadConfig {
     this.autoNextPageSpeed = 10,
     this.keepScreenOn = true,
     this.showMenuOnTap = true,
+    this.eyeProtection = false,
     this.paddingLeft = 16,
     this.paddingRight = 16,
     this.paddingTop = 8,

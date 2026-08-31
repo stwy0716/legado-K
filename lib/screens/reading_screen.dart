@@ -729,14 +729,22 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   }
 
   void _showFontPicker() {
+    final readProvider = context.read<ReadProvider>();
+    final fonts = ['系统默认', 'serif', 'sans-serif', 'monospace', 'cursive'];
+    final fontNames = ['系统默认', '衬线体', '无衬线体', '等宽字体', '手写体'];
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('选择字体'),
-        content: const Text('系统默认字体'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('确定')),
-        ],
+        content: Column(mainAxisSize: MainAxisSize.min, children: List.generate(fonts.length, (index) => RadioListTile<String>(
+          title: Text(fontNames[index], style: index == 0 ? null : TextStyle(fontFamily: fonts[index])),
+          value: fonts[index],
+          groupValue: readProvider.config.fontFamily ?? '系统默认',
+          onChanged: (value) {
+            if (value != null) readProvider.updateConfig((c) => c.fontFamily = value == '系统默认' ? null : value);
+            Navigator.pop(context);
+          },
+        ))),
       ),
     );
   }
@@ -865,6 +873,22 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                 items: List.generate(5, (i) => DropdownMenuItem(value: i, child: Text('$i行'))),
                 onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.paragraphSpacing = v ?? 1),
               ),
+            ),
+            SwitchListTile(
+              title: const Text('护眼模式'),
+              subtitle: const Text('暖色调屏幕'),
+              value: context.watch<ReadProvider>().config.eyeProtection,
+              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.eyeProtection = value),
+            ),
+            SwitchListTile(
+              title: const Text('显示电量'),
+              value: context.watch<ReadProvider>().config.batteryVisibility,
+              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.batteryVisibility = value),
+            ),
+            ListTile(
+              title: const Text('点击区域'),
+              subtitle: const Text('点击左右两侧翻页，中间显示菜单'),
+              onTap: () => Navigator.pop(context),
             ),
           ],
         ),
