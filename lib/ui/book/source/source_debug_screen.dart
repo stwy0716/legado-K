@@ -24,7 +24,7 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -152,6 +152,7 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
           controller: _tabController,
           tabs: const [
             Tab(text: '搜索'),
+            Tab(text: '发现'),
             Tab(text: '书籍信息'),
             Tab(text: '目录'),
             Tab(text: '正文'),
@@ -165,6 +166,7 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
               controller: _tabController,
               children: [
                 _buildSearchTab(),
+                _buildExploreTab(),
                 _buildBookInfoTab(),
                 _buildTocTab(),
                 _buildContentTab(),
@@ -208,6 +210,43 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
         ],
       ),
     );
+  }
+
+
+  Widget _buildExploreTab() {
+    final urlController = TextEditingController(text: widget.source.exploreUrl ?? '');
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(children: [
+        TextField(
+          controller: urlController,
+          decoration: const InputDecoration(labelText: '发现URL', border: OutlineInputBorder()),
+          maxLines: 2,
+        ),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: FilledButton.icon(
+            onPressed: () => _debugExplore(urlController.text),
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('执行发现'),
+          )),
+        ]),
+      ]),
+    );
+  }
+
+  Future<void> _debugExplore(String url) async {
+    if (url.isEmpty) { _log('错误: 请输入发现URL'); return; }
+    _log('开始发现: $url');
+    try {
+      final books = await _engine.explore(widget.source);
+      _log('发现完成，找到 ${books.length} 本书');
+      for (final b in books.take(10)) {
+        _log('  ${b.name} - ${b.author}');
+      }
+    } catch (e) {
+      _log('发现失败: $e');
+    }
   }
 
   Widget _buildSearchTab() {
