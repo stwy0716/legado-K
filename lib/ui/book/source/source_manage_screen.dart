@@ -383,6 +383,60 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
     ));
   }
 
+  Future<void> _batchAction(String action) async {
+    final selected = _sources.where((s) => _selectedIds.contains(s.bookSourceUrl)).toList();
+    switch (action) {
+      case 'enable_explore':
+        for (final s in selected) { s.enabledExplore = true; await _db.updateSource(s); }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已启用${selected.length}个书源的发现')));
+        break;
+      case 'disable_explore':
+        for (final s in selected) { s.enabledExplore = false; await _db.updateSource(s); }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已禁用${selected.length}个书源的发现')));
+        break;
+      case 'to_top':
+        for (var i = 0; i < selected.length; i++) { selected[i].customOrder = -(i + 1); await _db.updateSource(selected[i]); }
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已置顶')));
+        break;
+      case 'to_bottom':
+        for (var i = 0; i < selected.length; i++) { selected[i].customOrder = i + 1; await _db.updateSource(selected[i]); }
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已置底')));
+        break;
+      case 'add_group':
+        _showBatchGroupDialog(selected, true);
+        return;
+      case 'remove_group':
+        for (final s in selected) { s.bookSourceGroup = null; await _db.updateSource(s); }
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已移除分组')));
+        break;
+      case 'check':
+        Navigator.pop(context);
+        _validateSources();
+        return;
+      case 'invert':
+        final all = _filteredSources.map((s) => s.bookSourceUrl).toSet();
+        setState(() { _selectedIds = all.difference(_selectedIds.toSet()).toList(); });
+        return;
+    }
+    await _loadSources();
+    setState(() { _selectMode = false; _selectedIds.clear(); });
+  }
+
+  void _showBatchGroupDialog(List selected, bool add) {
+    final controller = TextEditingController();
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: Text(add ? '添加到分组' : '移除分组'),
+      content: TextField(controller: controller, decoration: const InputDecoration(labelText: '分组名称')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () async {
+          for (final s in selected) { s.bookSourceGroup = controller.text; await _db.updateSource(s); }
+          if (mounted) { Navigator.pop(context); await _loadSources(); setState(() { _selectMode = false; _selectedIds.clear(); }); }
+        }, child: const Text('确定')),
+      ],
+    ));
+  }
+
   Future<void> _batchEnable(bool enabled) async {
     for (final id in _selectedIds) {
       final source = _sources.where((s) => s.bookSourceUrl == id).firstOrNull;
@@ -417,6 +471,19 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
           IconButton(icon: const Icon(Icons.check_circle_outline), tooltip: '启用', onPressed: () => _batchEnable(true)),
           IconButton(icon: const Icon(Icons.remove_circle_outline), tooltip: '禁用', onPressed: () => _batchEnable(false)),
           IconButton(icon: const Icon(Icons.ios_share), tooltip: '导出', onPressed: _batchExport),
+          PopupMenuButton<String>(
+            onSelected: (v) => _batchAction(v),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'enable_explore', child: Text('启用发现')),
+              PopupMenuItem(value: 'disable_explore', child: Text('禁用发现')),
+              PopupMenuItem(value: 'to_top', child: Text('选中置顶')),
+              PopupMenuItem(value: 'to_bottom', child: Text('选中置底')),
+              PopupMenuItem(value: 'add_group', child: Text('添加分组')),
+              PopupMenuItem(value: 'remove_group', child: Text('移除分组')),
+              PopupMenuItem(value: 'check', child: Text('校验选中')),
+              PopupMenuItem(value: 'invert', child: Text('反选')),
+            ],
+          ),
           IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), tooltip: '删除', onPressed: () => showDialog(context: context, builder: (context) => AlertDialog(title: const Text('删除选中'), content: Text('确定删除${_selectedIds.length}个书源吗？'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')), FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () { Navigator.pop(context); _batchDelete(); }, child: const Text('删除'))]))),
         ] : [
           IconButton(
