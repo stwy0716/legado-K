@@ -9,6 +9,8 @@ import 'package:legado_md3/help/readaloud/reading_record.dart';
 import 'package:legado_md3/ui/book/search/search_screen.dart';
 import 'package:legado_md3/ui/book/read/reading_screen.dart';
 import 'package:legado_md3/ui/book/detail/book_detail_screen.dart';
+import 'package:legado_md3/data/model/homepage_module.dart';
+import 'package:legado_md3/ui/main/homepage/homepage_manage_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _readingDays = 0;
   int _dailyGoal = 30;
   bool _isLoading = true;
+  List<HomepageModule> _modules = [];
 
   @override
   void initState() {
@@ -69,6 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     _readingDays = days.length;
 
+    // 加载首页模块
+    _modules = await _db.getHomepageModules();
+
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -85,6 +91,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   // 搜索栏
                   _buildSearchBar(),
                   const SizedBox(height: 16),
+
+                  // 首页模块
+                  if (_modules.isNotEmpty) ...[
+                    _buildModulesSection(),
+                    const SizedBox(height: 16),
+                  ],
 
                   // 阅读目标卡片
                   _buildReadingGoalCard(),
@@ -177,6 +189,48 @@ class _HomeScreenState extends State<HomeScreen> {
         Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         if (onMore != null) TextButton(onPressed: onMore, child: const Text('更多')),
       ],
+    );
+  }
+
+  Widget _buildModulesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('首页模块', onMore: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const HomepageManageScreen()));
+        }),
+        const SizedBox(height: 8),
+        ..._modules.where((m) => m.enabled).map((module) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _buildModuleCard(module),
+        )),
+      ],
+    );
+  }
+
+  Widget _buildModuleCard(HomepageModule module) {
+    IconData icon;
+    Color color;
+    switch (module.type) {
+      case HomepageModuleType.banner: icon = Icons.image; color = Colors.blue; break;
+      case HomepageModuleType.buttonGroup: icon = Icons.smart_button; color = Colors.green; break;
+      case HomepageModuleType.card: icon = Icons.credit_card; color = Colors.orange; break;
+      case HomepageModuleType.grid: icon = Icons.grid_view; color = Colors.purple; break;
+      case HomepageModuleType.gridRanking: icon = Icons.grid_on; color = Colors.teal; break;
+      case HomepageModuleType.ranking: icon = Icons.emoji_events; color = Colors.amber; break;
+      case HomepageModuleType.waterfall: icon = Icons.view_stream; color = Colors.pink; break;
+      case HomepageModuleType.custom: icon = Icons.settings; color = Colors.grey; break;
+    }
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(backgroundColor: color.withOpacity(0.1), child: Icon(icon, color: color)),
+        title: Text(module.name),
+        subtitle: Text(module.sourceUrl ?? '点击配置书源'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('模块: ${module.name}')));
+        },
+      ),
     );
   }
 
