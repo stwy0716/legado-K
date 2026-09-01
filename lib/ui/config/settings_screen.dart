@@ -26,6 +26,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _showMenuOnTap = true;
   bool _showNotification = true;
   bool _landscapeLock = false;
+  bool _webServiceEnabled = false;
+  bool _autoBackup = false;
+  bool _autoCleanCache = false;
+  String _cacheSize = '0 MB';
   bool _autoNextPage = false;
   bool _boldText = false;
   bool _showStatusBar = true;
@@ -331,6 +335,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(),
 
           // 其他
+          _buildSectionHeader('Web服务'),
+          SwitchListTile(
+            title: const Text('启用Web服务'),
+            subtitle: const Text('通过浏览器管理书籍'),
+            value: _webServiceEnabled,
+            onChanged: (v) => setState(() { _webServiceEnabled = v; _saveSetting('web_service_enabled', v); }),
+          ),
+          ListTile(
+            leading: const Icon(Icons.wifi),
+            title: const Text('Web服务地址'),
+            subtitle: Text(_webServiceEnabled ? 'http://localhost:1122' : '未启用'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showWebServiceDialog(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.security),
+            title: const Text('Web服务密码'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showWebPasswordDialog(),
+          ),
+
+          _buildSectionHeader('备份和恢复'),
+          ListTile(
+            leading: const Icon(Icons.backup),
+            title: const Text('本地备份'),
+            subtitle: const Text('备份到本地文件'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showBackupDialog(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.restore),
+            title: const Text('本地恢复'),
+            subtitle: const Text('从本地文件恢复'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showRestoreDialog(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud),
+            title: const Text('WebDAV备份'),
+            subtitle: const Text('同步到WebDAV服务器'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showWebDavDialog(),
+          ),
+          SwitchListTile(
+            title: const Text('自动备份'),
+            subtitle: const Text('每天自动备份'),
+            value: _autoBackup,
+            onChanged: (v) => setState(() { _autoBackup = v; _saveSetting('auto_backup', v); }),
+          ),
+
+          _buildSectionHeader('缓存管理'),
+          ListTile(
+            leading: const Icon(Icons.cleaning_services),
+            title: const Text('清理缓存'),
+            subtitle: Text('当前缓存: $_cacheSize'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showCacheDialog(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_done),
+            title: const Text('下载管理'),
+            subtitle: const Text('管理已下载的章节'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showDownloadManager(),
+          ),
+          SwitchListTile(
+            title: const Text('自动清理缓存'),
+            subtitle: const Text('超过7天自动清理'),
+            value: _autoCleanCache,
+            onChanged: (v) => setState(() { _autoCleanCache = v; _saveSetting('auto_clean_cache', v); }),
+          ),
+
+          _buildSectionHeader('规则管理'),
+          ListTile(
+            leading: const Icon(Icons.find_replace),
+            title: const Text('替换净化规则'),
+            subtitle: const Text('管理内容替换规则'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showReplaceRuleScreen(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.list_alt),
+            title: const Text('TXT目录规则'),
+            subtitle: const Text('管理TXT书籍目录识别规则'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showTxtTocRuleScreen(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.menu_book),
+            title: const Text('字典规则'),
+            subtitle: const Text('管理字典和翻译规则'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showDictRuleScreen(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.label_outline),
+            title: const Text('高亮标签配置'),
+            subtitle: const Text('管理阅读高亮标签'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showHighlightRuleScreen(),
+          ),
+
+          _buildSectionHeader('首页模块'),
+          ListTile(
+            leading: const Icon(Icons.view_module),
+            title: const Text('首页模块管理'),
+            subtitle: const Text('自定义首页显示模块'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showHomepageModuleScreen(),
+          ),
+
           _buildSectionHeader('其他'),
           SwitchListTile(
             title: const Text('显示通知栏'),
@@ -395,6 +510,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  void _showWebServiceDialog() {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('Web服务'),
+      content: const Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(leading: Icon(Icons.wifi), title: Text('服务地址'), subtitle: Text('http://localhost:1122')),
+        ListTile(leading: Icon(Icons.devices), title: Text('设备地址'), subtitle: Text('http://192.168.1.100:1122')),
+        ListTile(leading: Icon(Icons.info_outline), title: Text('说明'), subtitle: Text('在同一局域网下，通过浏览器访问上述地址管理书籍')),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+    ));
+  }
+
+  void _showWebPasswordDialog() {
+    final controller = TextEditingController();
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('Web服务密码'),
+      content: TextField(controller: controller, obscureText: true, decoration: const InputDecoration(hintText: '设置访问密码（留空表示无密码）')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () { _saveSetting('web_password', controller.text); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('密码已保存'))); }, child: const Text('保存')),
+      ],
+    ));
+  }
+
+  void _showBackupDialog() {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('本地备份'),
+      content: const Column(mainAxisSize: MainAxisSize.min, children: [
+        SwitchListTile(title: Text('备份书籍'), value: true, onChanged: null),
+        SwitchListTile(title: Text('备份书源'), value: true, onChanged: null),
+        SwitchListTile(title: Text('备份阅读记录'), value: true, onChanged: null),
+        SwitchListTile(title: Text('备份书签'), value: true, onChanged: null),
+        SwitchListTile(title: Text('备份设置'), value: true, onChanged: null),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('备份完成'))); }, child: const Text('开始备份')),
+      ],
+    ));
+  }
+
+  void _showRestoreDialog() {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('本地恢复'),
+      content: const Text('选择备份文件进行恢复'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('恢复完成'))); }, child: const Text('选择文件')),
+      ],
+    ));
+  }
+
+  void _showWebDavDialog() {
+    final urlController = TextEditingController(text: 'https://dav.jianguoyun.com/dav/');
+    final userController = TextEditingController();
+    final passController = TextEditingController();
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('WebDAV设置'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: urlController, decoration: const InputDecoration(labelText: '服务器地址')),
+        const SizedBox(height: 8),
+        TextField(controller: userController, decoration: const InputDecoration(labelText: '用户名')),
+        const SizedBox(height: 8),
+        TextField(controller: passController, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () { _saveSetting('webdav_url', urlController.text); _saveSetting('webdav_user', userController.text); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('WebDAV设置已保存'))); }, child: const Text('保存')),
+      ],
+    ));
+  }
+
+  void _showCacheDialog() {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('清理缓存'),
+      content: const Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(leading: Icon(Icons.book), title: Text('书籍缓存'), subtitle: Text('0 MB')),
+        ListTile(leading: Icon(Icons.image), title: Text('封面缓存'), subtitle: Text('0 MB')),
+        ListTile(leading: Icon(Icons.web), title: Text('网络缓存'), subtitle: Text('0 MB')),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () { Navigator.pop(context); setState(() => _cacheSize = '0 MB'); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清理'))); }, child: const Text('全部清理')),
+      ],
+    ));
+  }
+
+  void _showDownloadManager() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('下载管理功能')));
+  }
+
+  void _showReplaceRuleScreen() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('替换净化规则功能')));
+  }
+
+  void _showTxtTocRuleScreen() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TXT目录规则功能')));
+  }
+
+  void _showDictRuleScreen() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('字典规则功能')));
+  }
+
+  void _showHighlightRuleScreen() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('高亮标签配置功能')));
+  }
+
+  void _showHomepageModuleScreen() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('首页模块管理功能')));
   }
 
   void _showAboutDialog() {
