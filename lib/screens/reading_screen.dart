@@ -668,7 +668,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
       'content': _pages.isNotEmpty ? _pages[currentPage.clamp(0, _pages.length - 1)].substring(0, _pages[currentPage.clamp(0, _pages.length - 1)].length > 50 ? 50 : _pages[currentPage.clamp(0, _pages.length - 1)].length) : '',
       'createTime': DateTime.now().millisecondsSinceEpoch,
     };
-    await _db.addBookmark(bookmark);
+    await _db.addBookmark(Bookmark.fromMap(bookmark));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已添加书签')));
     }
@@ -702,11 +702,11 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                     return ListTile(
                       leading: const Icon(Icons.bookmark),
                       title: Text(bm.chapterTitle?.toString() ?? '第${bm.chapterIndex}章'),
-                      subtitle: Text('第 ${(bm.pagePos as int? ?? 0) + 1} 页'),
+                      subtitle: Text('第 ${(bm.pageIndex as int? ?? 0) + 1} 页'),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
                         onPressed: () async {
-                          await _db.deleteBookmark(bm.id! as int);
+                          await _db.deleteBookmark(bm.id!);
                           Navigator.pop(context);
                           _showBookmarks();
                         },
