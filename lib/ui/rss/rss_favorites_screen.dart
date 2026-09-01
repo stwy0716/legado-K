@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../data/local/app_database.dart';
-import '../../data/model/rss_article.dart';
-import 'rss_read_screen.dart';
+import 'package:legado_md3/data/local/app_database.dart';
+import 'package:legado_md3/data/model/rss_article.dart';
+import 'package:legado_md3/ui/rss/rss_read_screen.dart';
 
 /// RSS收藏文章页面 - 对齐原版RssFavoritesScreen
 class RssFavoritesScreen extends StatefulWidget {
