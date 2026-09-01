@@ -41,16 +41,6 @@ class DatabaseService {
     if (_db != null) return _db!;
     _db = await _initDatabase();
     return _db!;
-  
-  // ==================== 章节内容更新 ====================
-  Future<void> updateChapterContent(String bookName, String author, int chapterIndex, String content) async {
-    final db = await database;
-    await db.update('book_chapters', {'content': content}, where: 'bookName = ? AND bookAuthor = ? AND "index" = ?', whereArgs: [bookName, author, chapterIndex]);
-  }
-
-  // ==================== 添加书签别名 ====================
-  Future<void> addBookmark(Bookmark bookmark) async {
-    await insertBookmark(bookmark);
   }
 
   Future<Database> _initDatabase() async {
@@ -93,7 +83,7 @@ class DatabaseService {
     await db.execute('CREATE TABLE IF NOT EXISTS keyboard_assists (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, rule TEXT, enabled INTEGER DEFAULT 1, "order" INTEGER)');
   }
 
-  // ==================== 书籍DAO ====================
+  // 书籍DAO
   Future<List<Book>> getAllBooks() async {
     final db = await database;
     final maps = await db.query('books', orderBy: '"order" ASC');
@@ -122,7 +112,7 @@ class DatabaseService {
     await db.delete('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [name, author]);
   }
 
-  // ==================== 章节DAO ====================
+  // 章节DAO
   Future<List<BookChapter>> getChapters(String bookName, String bookAuthor) async {
     final db = await database;
     final maps = await db.query('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [bookName, bookAuthor], orderBy: '"index" ASC');
@@ -148,12 +138,17 @@ class DatabaseService {
     await batch.commit(noResult: true);
   }
 
+  Future<void> updateChapterContent(String bookName, String author, int chapterIndex, String content) async {
+    final db = await database;
+    await db.update('book_chapters', {'content': content}, where: 'bookName = ? AND bookAuthor = ? AND "index" = ?', whereArgs: [bookName, author, chapterIndex]);
+  }
+
   Future<void> deleteChapters(String bookName, String bookAuthor) async {
     final db = await database;
     await db.delete('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [bookName, bookAuthor]);
   }
 
-  // ==================== 书源DAO ====================
+  // 书源DAO
   Future<List<BookSource>> getAllSources({bool? enabled}) async {
     final db = await database;
     final maps = enabled != null
@@ -189,7 +184,7 @@ class DatabaseService {
     return maps.map((m) => m['bookSourceGroup'].toString()).toList();
   }
 
-  // ==================== 分组DAO ====================
+  // 分组DAO
   Future<List<BookGroup>> getBookGroups() async {
     final db = await database;
     final maps = await db.query('book_groups', orderBy: '"order" ASC');
@@ -206,7 +201,7 @@ class DatabaseService {
     await db.delete('book_groups', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== 书签DAO ====================
+  // 书签DAO
   Future<List<Bookmark>> getBookmarks([String? bookName, String? author]) async {
     final db = await database;
     final maps = bookName != null
@@ -220,12 +215,16 @@ class DatabaseService {
     await db.insert('bookmarks', bookmark.toMap());
   }
 
+  Future<void> addBookmark(Bookmark bookmark) async {
+    await insertBookmark(bookmark);
+  }
+
   Future<void> deleteBookmark(int id) async {
     final db = await database;
     await db.delete('bookmarks', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== 替换规则DAO ====================
+  // 替换规则DAO
   Future<List<ReplaceRule>> getReplaceRules() async {
     final db = await database;
     final maps = await db.query('replace_rules', orderBy: '"order" ASC');
@@ -247,7 +246,7 @@ class DatabaseService {
     await db.delete('replace_rules', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== RSS DAO ====================
+  // RSS DAO
   Future<List<RssSource>> getRssSources() async {
     final db = await database;
     final maps = await db.query('rss_sources', orderBy: 'lastUpdateTime DESC');
@@ -296,7 +295,7 @@ class DatabaseService {
     await db.update('rss_articles', {'read': 1}, where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== TXT目录规则DAO ====================
+  // TXT目录规则DAO
   Future<List<TxtTocRule>> getTxtTocRules() async {
     final db = await database;
     final maps = await db.query('txt_toc_rules', orderBy: '"order" ASC');
@@ -313,7 +312,7 @@ class DatabaseService {
     await db.delete('txt_toc_rules', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== 阅读记录DAO ====================
+  // 阅读记录DAO
   Future<void> updateReadPosition(String bookName, String author, int chapterIndex, int pagePos, int time) async {
     final db = await database;
     await db.insert('read_records', {'bookName': bookName, 'author': author, 'chapterIndex': chapterIndex, 'pagePos': pagePos, 'duration': 0, 'date': time});
@@ -330,7 +329,7 @@ class DatabaseService {
     await db.insert('read_records', {'bookName': bookName, 'author': author, 'duration': duration, 'date': date});
   }
 
-  // ==================== 缓存DAO ====================
+  // 缓存DAO
   Future<List<Cache>> getCaches() async {
     final db = await database;
     final maps = await db.query('caches', orderBy: 'saveTime DESC');
@@ -352,7 +351,7 @@ class DatabaseService {
     await db.delete('caches');
   }
 
-  // ==================== 字典规则DAO ====================
+  // 字典规则DAO
   Future<List<DictRule>> getDictRules() async {
     final db = await database;
     final maps = await db.query('dict_rules', orderBy: '"order" ASC');
@@ -369,7 +368,7 @@ class DatabaseService {
     await db.delete('dict_rules', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== 高亮规则DAO ====================
+  // 高亮规则DAO
   Future<List<HighlightRule>> getHighlightRules() async {
     final db = await database;
     final maps = await db.query('highlight_rules', orderBy: '"order" ASC');
@@ -386,7 +385,7 @@ class DatabaseService {
     await db.delete('highlight_rules', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== 高亮标签规则DAO ====================
+  // 高亮标签规则DAO
   Future<List<HighlightTagRule>> getHighlightTagRules() async {
     final db = await database;
     final maps = await db.query('highlight_tag_rules', orderBy: '"order" ASC');
@@ -403,7 +402,7 @@ class DatabaseService {
     await db.delete('highlight_tag_rules', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== 云TTS DAO ====================
+  // 云TTS DAO
   Future<List<CloudTtsEngine>> getCloudTtsEngines() async {
     final db = await database;
     final maps = await db.query('cloud_tts_engines');
@@ -425,7 +424,7 @@ class DatabaseService {
     await db.delete('cloud_tts_engines', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== Cookie DAO ====================
+  // Cookie DAO
   Future<String?> getCookie(String url) async {
     final db = await database;
     final maps = await db.query('cookies', where: 'url = ?', whereArgs: [url]);
@@ -437,7 +436,7 @@ class DatabaseService {
     await db.insert('cookies', {'url': url, 'cookie': cookie, 'lastUpdateTime': DateTime.now().millisecondsSinceEpoch}, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  // ==================== 书籍知识DAO ====================
+  // 书籍知识DAO
   Future<List<BookKnowledge>> getBookKnowledge(String bookName, String author, {String? type}) async {
     final db = await database;
     final maps = type != null
@@ -451,7 +450,7 @@ class DatabaseService {
     await db.insert('book_knowledge', knowledge.toMap());
   }
 
-  // ==================== 书籍标记DAO ====================
+  // 书籍标记DAO
   Future<List<BookMarking>> getBookMarkings(String bookName, String author) async {
     final db = await database;
     final maps = await db.query('book_markings', where: 'bookName = ? AND author = ?', whereArgs: [bookName, author], orderBy: 'createTime DESC');
@@ -468,7 +467,7 @@ class DatabaseService {
     await db.delete('book_markings', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== 搜索历史DAO ====================
+  // 搜索历史DAO
   Future<List<String>> getSearchHistory({int limit = 20}) async {
     final db = await database;
     final maps = await db.query('search_content_history', orderBy: 'searchTime DESC', limit: limit);
@@ -485,7 +484,7 @@ class DatabaseService {
     await db.delete('search_content_history');
   }
 
-  // ==================== 规则订阅DAO ====================
+  // 规则订阅DAO
   Future<List<RuleSub>> getRuleSubs() async {
     final db = await database;
     final maps = await db.query('rule_subs', orderBy: 'customOrder ASC');
@@ -502,7 +501,7 @@ class DatabaseService {
     await db.delete('rule_subs', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== 翻译缓存DAO ====================
+  // 翻译缓存DAO
   Future<String?> getTranslation(String source, String target, String original) async {
     final db = await database;
     final maps = await db.query('translation_caches', where: 'source = ? AND target = ? AND original = ?', whereArgs: [source, target, original]);
@@ -514,7 +513,7 @@ class DatabaseService {
     await db.insert('translation_caches', {'source': source, 'target': target, 'original': original, 'translated': translated, 'saveTime': DateTime.now().millisecondsSinceEpoch});
   }
 
-  // ==================== 键盘辅助DAO ====================
+  // 键盘辅助DAO
   Future<List<KeyboardAssist>> getKeyboardAssists() async {
     final db = await database;
     final maps = await db.query('keyboard_assists', orderBy: '"order" ASC');
@@ -526,7 +525,7 @@ class DatabaseService {
     await db.insert('keyboard_assists', assist.toMap());
   }
 
-  // ==================== HTTP TTS DAO ====================
+  // HTTP TTS DAO
   Future<List<HttpTTS>> getHttpTTS() async {
     final db = await database;
     final maps = await db.query('http_tts');
@@ -538,7 +537,7 @@ class DatabaseService {
     await db.insert('http_tts', tts.toMap());
   }
 
-  // ==================== RSS收藏DAO ====================
+  // RSS收藏DAO
   Future<List<RssStar>> getRssStars() async {
     final db = await database;
     final maps = await db.query('rss_stars', orderBy: 'starTime DESC');
@@ -555,7 +554,7 @@ class DatabaseService {
     await db.delete('rss_stars', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== 服务器DAO ====================
+  // 服务器DAO
   Future<List<Server>> getServers() async {
     final db = await database;
     final maps = await db.query('servers');
@@ -567,7 +566,7 @@ class DatabaseService {
     await db.insert('servers', server.toMap());
   }
 
-  // ==================== 标签分组规则DAO ====================
+  // 标签分组规则DAO
   Future<List<TagGroupRule>> getTagGroupRules() async {
     final db = await database;
     final maps = await db.query('tag_group_rules', orderBy: '"order" ASC');
@@ -579,14 +578,14 @@ class DatabaseService {
     await db.insert('tag_group_rules', rule.toMap());
   }
 
-  // ==================== 搜索书籍DAO ====================
+  // 搜索书籍DAO
   Future<List<Book>> getSearchBooks() async {
     final db = await database;
     final maps = await db.query('search_books', orderBy: 'addTime DESC');
     return maps.map((m) => Book.fromMap(m)).toList();
   }
 
-  // ==================== 阅读进度DAO ====================
+  // 阅读进度DAO
   Future<BookProgress?> getBookProgress(String bookName, String author) async {
     final db = await database;
     final maps = await db.query('book_progress', where: 'bookName = ? AND author = ?', whereArgs: [bookName, author], orderBy: 'lastReadTime DESC', limit: 1);
