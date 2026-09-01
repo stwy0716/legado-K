@@ -10,6 +10,7 @@ import 'package:legado_md3/ui/bookmark/bookmark_screen.dart';
 import 'package:legado_md3/ui/stats/reading_stats_screen.dart';
 import 'package:legado_md3/ui/cache/cache_manage_screen.dart';
 import 'package:legado_md3/ui/backup/backup_screen.dart';
+import 'package:legado_md3/ui/main/homepage/homepage_manage_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -57,6 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildMenuItem(context, Icons.list_alt_outlined, 'TXT目录规则', '本地TXT目录识别', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TxtTocRuleScreen()))),
           _buildMenuItem(context, Icons.translate_outlined, '字典规则', '文字替换字典', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DictRuleScreen()))),
           _buildMenuItem(context, Icons.tag_outlined, '高亮标签配置', '阅读内容高亮', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HighlightTagRuleScreen()))),
+          _buildMenuItem(context, Icons.dashboard_customize, '首页模块', '自定义首页模块', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HomepageManageScreen()))),
 
           const Divider(),
 

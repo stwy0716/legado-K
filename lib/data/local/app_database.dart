@@ -28,6 +28,7 @@ import 'package:legado_md3/data/model/tag_group_rule.dart';
 import 'package:legado_md3/data/model/translation_cache.dart';
 import 'package:legado_md3/data/model/txt_toc_rule.dart';
 import 'package:legado_md3/data/model/keyboard_assist.dart';
+import 'package:legado_md3/data/model/homepage_module.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -35,7 +36,7 @@ class DatabaseService {
   DatabaseService._internal();
 
   Database? _db;
-  static const int _dbVersion = 4;
+  static const int _dbVersion = 5;
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -81,6 +82,8 @@ class DatabaseService {
     await db.execute('CREATE TABLE IF NOT EXISTS translation_caches (id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, target TEXT, original TEXT, translated TEXT, saveTime INTEGER)');
     await db.execute('CREATE TABLE IF NOT EXISTS txt_toc_rules (id INTEGER PRIMARY KEY AUTOINCREMENT, chapterRule TEXT, enable INTEGER DEFAULT 1, "order" INTEGER)');
     await db.execute('CREATE TABLE IF NOT EXISTS keyboard_assists (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, rule TEXT, enabled INTEGER DEFAULT 1, "order" INTEGER)');
+    await db.execute('CREATE TABLE IF NOT EXISTS homepage_modules (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, type INTEGER, sourceUrl TEXT, exploreUrl TEXT, config TEXT, customOrder INTEGER, enabled INTEGER DEFAULT 1)');
+    await db.execute('CREATE TABLE IF NOT EXISTS homepage_custom_sets (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, moduleIds TEXT, customOrder INTEGER)');
   }
 
   // 书籍DAO
@@ -595,5 +598,45 @@ class DatabaseService {
   Future<void> saveBookProgress(BookProgress progress) async {
     final db = await database;
     await db.insert('book_progress', progress.toMap());
+  }
+
+  // 首页模块DAO
+  Future<List<HomepageModule>> getHomepageModules() async {
+    final db = await database;
+    final maps = await db.query('homepage_modules', orderBy: 'customOrder ASC');
+    return maps.map((m) => HomepageModule.fromMap(m)).toList();
+  }
+
+  Future<void> insertHomepageModule(HomepageModule module) async {
+    final db = await database;
+    await db.insert('homepage_modules', module.toMap());
+  }
+
+  Future<void> updateHomepageModule(HomepageModule module) async {
+    final db = await database;
+    if (module.id != null) {
+      await db.update('homepage_modules', module.toMap(), where: 'id = ?', whereArgs: [module.id]);
+    }
+  }
+
+  Future<void> deleteHomepageModule(int id) async {
+    final db = await database;
+    await db.delete('homepage_modules', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<HomepageCustomSet>> getHomepageCustomSets() async {
+    final db = await database;
+    final maps = await db.query('homepage_custom_sets', orderBy: 'customOrder ASC');
+    return maps.map((m) => HomepageCustomSet.fromMap(m)).toList();
+  }
+
+  Future<void> insertHomepageCustomSet(HomepageCustomSet set) async {
+    final db = await database;
+    await db.insert('homepage_custom_sets', set.toMap());
+  }
+
+  Future<void> deleteHomepageCustomSet(int id) async {
+    final db = await database;
+    await db.delete('homepage_custom_sets', where: 'id = ?', whereArgs: [id]);
   }
 }
