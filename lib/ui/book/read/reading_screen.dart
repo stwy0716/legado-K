@@ -798,4 +798,8 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   void _showReadingSettings() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ReadingSettingsScreen()));
   }
+
+  void _startTTS() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TTS朗读功能')));
+  }
 }

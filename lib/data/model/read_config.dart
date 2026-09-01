@@ -60,6 +60,10 @@ class ReadConfig {
   int footerSize;
   bool headerBold;
   bool footerBold;
+  bool headerAlignCenter;
+  int headerColor;
+  bool footerAlignCenter;
+  int footerColor;
 
   // 其他
   bool keepScreenOn;
@@ -121,6 +125,10 @@ class ReadConfig {
     this.footerSize = 12,
     this.headerBold = false,
     this.footerBold = false,
+    this.headerAlignCenter = true,
+    this.headerColor = 0xFF999999,
+    this.footerAlignCenter = false,
+    this.footerColor = 0xFF999999,
     this.keepScreenOn = false,
     this.showMenuOnTap = true,
     this.longPressSelect = true,
@@ -206,6 +214,10 @@ class ReadConfig {
     footerSize: json['footerSize'] ?? 12,
     headerBold: json['headerBold'] ?? false,
     footerBold: json['footerBold'] ?? false,
+    headerAlignCenter: json['headerAlignCenter'] ?? true,
+    headerColor: json['headerColor'] ?? 0xFF999999,
+    footerAlignCenter: json['footerAlignCenter'] ?? false,
+    footerColor: json['footerColor'] ?? 0xFF999999,
     keepScreenOn: json['keepScreenOn'] ?? false,
     showMenuOnTap: json['showMenuOnTap'] ?? true,
     longPressSelect: json['longPressSelect'] ?? true,
@@ -218,4 +230,13 @@ class ReadConfig {
 
   String toJsonString() => jsonEncode(toJson());
   factory ReadConfig.fromJsonString(String str) => ReadConfig.fromJson(jsonDecode(str));
+  /// 预设阅读主题
+  static const List<Map<String, dynamic>> presets = [
+    {'name': '默认', 'bgColor': 0xFFFFF8E1, 'textColor': 0xFF333333},
+    {'name': '护眼', 'bgColor': 0xFFCCE8CF, 'textColor': 0xFF333333},
+    {'name': '夜间', 'bgColor': 0xFF1A1A2E, 'textColor': 0xFFE0E0E0},
+    {'name': '羊皮纸', 'bgColor': 0xFFF5E6C8, 'textColor': 0xFF5D4E37},
+    {'name': '绿色', 'bgColor': 0xFFC8E6C9, 'textColor': 0xFF1B5E20},
+  ];
+
 }
