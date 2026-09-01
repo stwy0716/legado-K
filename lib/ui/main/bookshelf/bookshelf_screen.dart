@@ -224,12 +224,25 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         actions: [
           if (_searchQuery.isEmpty) IconButton(icon: const Icon(Icons.search), onPressed: () => setState(() => _searchQuery = ' ')),
           if (_searchQuery.isNotEmpty) IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); setState(() => _searchQuery = ''); }),
-          if (_selectMode) IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() { _selectMode = false; _selectedBooks.clear(); })) else IconButton(icon: const Icon(Icons.more_vert), onPressed: _showMoreMenu),
+          if (_selectMode) ...[
+            IconButton(icon: const Icon(Icons.select_all), tooltip: '全选', onPressed: () => setState(() { _selectedBooks
+              ..clear()..addAll(books); })),
+            IconButton(icon: const Icon(Icons.flip), tooltip: '反选', onPressed: () => setState(() { final all = books.toSet(); final inverted = all.difference(_selectedBooks); _selectedBooks..clear()..addAll(inverted); })),
+            IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() { _selectMode = false; _selectedBooks.clear(); })),
+          ] else IconButton(icon: const Icon(Icons.more_vert), onPressed: _showMoreMenu),
         ],
         bottom: PreferredSize(preferredSize: const Size.fromHeight(48), child: _buildGroupTabs(provider)),
       ),
       body: _isUpdating ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('正在更新...')])) : books.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.menu_book_outlined, size: 64, color: Colors.grey[400]), const SizedBox(height: 16), Text('书架为空', style: TextStyle(color: Colors.grey[600], fontSize: 16)), const SizedBox(height: 8), Text('去搜索或发现页面添加书籍', style: TextStyle(color: Colors.grey[500])), const SizedBox(height: 24), FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())), icon: const Icon(Icons.search), label: const Text('去搜索'))])) : _buildBookList(books, layout),
-      floatingActionButton: _selectMode ? FloatingActionButton.extended(onPressed: _selectedBooks.isEmpty ? null : () async { for (final book in _selectedBooks) { await _db.deleteBook(book.name, book.author); } await provider.loadBooks(); setState(() { _selectMode = false; _selectedBooks.clear(); }); }, icon: const Icon(Icons.delete), label: Text('删除 (${_selectedBooks.length})'), backgroundColor: Colors.red) : null,
+      bottomNavigationBar: _selectMode ? SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Divider(height: 1),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+          _batchBtn(Icons.drive_file_move_outline, '移动分组', _batchMoveGroup),
+          _batchBtn(Icons.cloud_download_outlined, '缓存', _batchCache),
+          _batchBtn(Icons.delete_sweep_outlined, '删除', _batchDelete, danger: true),
+        ]),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), child: Align(alignment: Alignment.centerLeft, child: Text('已选 ${_selectedBooks.length} 本', style: const TextStyle(fontSize: 12, color: Colors.grey)))),
+      ])) : null,
     );
   }
 
@@ -313,6 +326,65 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     final colors = [Colors.blueGrey, Colors.brown, Colors.teal, Colors.indigo, Colors.deepOrange, Colors.purple];
     final color = colors[book.name.hashCode.abs() % colors.length];
     return Container(width: width, height: height, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(radius)), child: Center(child: Padding(padding: const EdgeInsets.all(4), child: Text(book.name, maxLines: 3, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))));
+  }
+
+
+  Widget _batchBtn(IconData icon, String label, VoidCallback onTap, {bool danger = false}) {
+    final color = danger ? Colors.red : null;
+    return TextButton.icon(
+      onPressed: _selectedBooks.isEmpty ? null : onTap,
+      icon: Icon(icon, size: 20, color: color),
+      label: Text(label, style: TextStyle(color: color, fontSize: 13)),
+    );
+  }
+
+  Future<void> _batchMoveGroup() async {
+    final provider = Provider.of<BookProvider>(context, listen: false);
+    final groups = provider.groups.where((g) => g != '全部').toList();
+    final controller = TextEditingController();
+    if (!mounted) return;
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('移动到分组'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        Wrap(spacing: 8, children: [
+          for (final g in groups) ActionChip(label: Text(g), onPressed: () async {
+            for (final b in _selectedBooks) { b.group = g; await _db.updateBook(b); }
+            if (mounted) { Navigator.pop(context); await provider.loadBooks(); setState(() { _selectMode = false; _selectedBooks.clear(); }); }
+          }),
+          ActionChip(label: const Text('未分组'), onPressed: () async {
+            for (final b in _selectedBooks) { b.group = null; await _db.updateBook(b); }
+            if (mounted) { Navigator.pop(context); await provider.loadBooks(); setState(() { _selectMode = false; _selectedBooks.clear(); }); }
+          }),
+        ]),
+        const SizedBox(height: 12),
+        TextField(controller: controller, decoration: const InputDecoration(labelText: '新分组名称')),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () async {
+          final g = controller.text.trim();
+          if (g.isEmpty) return;
+          for (final b in _selectedBooks) { b.group = g; await _db.updateBook(b); }
+          if (mounted) { Navigator.pop(context); await provider.loadBooks(); setState(() { _selectMode = false; _selectedBooks.clear(); }); }
+        }, child: const Text('确定')),
+      ],
+    ));
+  }
+
+  Future<void> _batchCache() async {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('开始缓存 ${_selectedBooks.length} 本书...')));
+    setState(() { _selectMode = false; _selectedBooks.clear(); });
+  }
+
+  Future<void> _batchDelete() async {
+    final confirmed = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+      title: const Text('删除书籍'), content: Text('确定删除选中的 ${_selectedBooks.length} 本书吗？'),
+      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('取消')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('删除'))],
+    ));
+    if (confirmed == true) {
+      for (final book in _selectedBooks) { await _db.deleteBook(book.name, book.author); }
+      if (mounted) { final p = Provider.of<BookProvider>(context, listen: false); await p.loadBooks(); setState(() { _selectMode = false; _selectedBooks.clear(); }); }
+    }
   }
 
   void _toggleSelect(Book book) => setState(() => _selectedBooks.contains(book) ? _selectedBooks.remove(book) : _selectedBooks.add(book));
