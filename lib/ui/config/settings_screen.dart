@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:legado_md3/ui/config/theme_manage_screen.dart';
+import 'package:legado_md3/ui/config/cover_config_screen.dart';
+import 'package:legado_md3/ui/book/manga/manga_config_screen.dart';
 import 'package:legado_md3/ui/config/cloud_tts_screen.dart';
 import 'package:legado_md3/ui/cache/cache_manage_screen.dart';
 import 'package:legado_md3/ui/backup/backup_screen.dart';
@@ -109,6 +111,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('主题色'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showColorPicker(theme),
+          ),
+          ListTile(
+            leading: const Icon(Icons.book_outlined),
+            title: const Text('封面配置'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CoverConfigScreen())),
           ),
           const Divider(),
 
@@ -263,6 +271,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(),
 
           // TTS设置
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('漫画阅读设置'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MangaConfigScreen())),
+          ),
           _buildSectionHeader('TTS设置'),
           ListTile(
             leading: const Icon(Icons.record_voice_over_outlined),

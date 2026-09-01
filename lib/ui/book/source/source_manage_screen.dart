@@ -721,6 +721,24 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.vertical_align_bottom),
+              title: const Text('置底'),
+              onTap: () {
+                Navigator.pop(context);
+                source.customOrder = 1;
+                _db.updateSource(source);
+                _loadSources();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.login),
+              title: const Text('登录'),
+              onTap: () {
+                Navigator.pop(context);
+                _showSourceLogin(source);
+              },
+            ),
+            ListTile(
               leading: Icon(source.enabledExplore ? Icons.explore_off : Icons.explore),
               title: Text(source.enabledExplore ? '禁用发现' : '启用发现'),
               onTap: () {
