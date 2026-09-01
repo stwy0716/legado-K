@@ -125,7 +125,7 @@ class DatabaseService {
     for (final c in chapters) {
       batch.insert('book_chapters', c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
     }
-    await batch.commit(noResult: true);
+    await batch.commit();
   }
 
   Future<void> saveChapters(String bookName, String bookAuthor, List<BookChapter> chapters) async {
@@ -135,7 +135,7 @@ class DatabaseService {
     for (final c in chapters) {
       batch.insert('book_chapters', c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
     }
-    await batch.commit(noResult: true);
+    await batch.commit();
   }
 
   Future<void> updateChapterContent(String bookName, String author, int chapterIndex, String content) async {
@@ -287,7 +287,7 @@ class DatabaseService {
     for (final a in articles) {
       batch.insert('rss_articles', a.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
     }
-    await batch.commit(noResult: true);
+    await batch.commit();
   }
 
   Future<void> markRssArticleRead(int id) async {

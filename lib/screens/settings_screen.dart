@@ -389,7 +389,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           FilledButton(onPressed: () async {
             final db = DatabaseService();
             final books = await db.getAllBooks();
-            for (final book in books) { await db.clearChapterContent(book.name, book.author); }
+            for (final book in books) { await db.clearChapterContent(); }
             if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除'))); }
           }, child: const Text('清除')),
         ],
