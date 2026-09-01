@@ -15,6 +15,9 @@ import 'package:legado_md3/help/readaloud/reading_record.dart';
 import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/ui/book/read/config/reading_settings_screen.dart';
 import 'package:legado_md3/ui/book/chapter/chapter_list_screen.dart';
+import 'package:legado_md3/ui/book/search/search_content_screen.dart';
+import 'package:legado_md3/ui/book/read/widgets/download_sheet.dart';
+import 'package:legado_md3/ui/book/read/widgets/change_chapter_source_sheet.dart';
 import 'package:legado_md3/ui/book/read/tts_player_screen.dart';
 import 'package:legado_md3/ui/book/detail/book_detail_screen.dart';
 
@@ -585,6 +588,22 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
               onTap: () { Navigator.pop(context); _showTranslateDialog(); },
             ),
             ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('章节换源'),
+              onTap: () async {
+                Navigator.pop(context);
+                final source = await showModalBottomSheet(
+                  context: context, isScrollControlled: true,
+                  builder: (_) => ChangeChapterSourceSheet(bookName: widget.book.name, author: widget.book.author),
+                );
+                if (source != null) {
+                  widget.book.origin = source.bookSourceUrl;
+                  widget.book.originName = source.bookSourceName;
+                  _loadChapterContent(_currentChapterIndex);
+                }
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.content_copy),
               title: const Text('复制当前页'),
               onTap: () async {
@@ -629,10 +648,14 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
             ),
             ListTile(
               leading: const Icon(Icons.download),
-              title: const Text('缓存全部章节'),
-              onTap: () {
+              title: const Text('离线缓存'),
+              onTap: () async {
                 Navigator.pop(context);
-                _cacheAllChapters();
+                final range = await showModalBottomSheet<List<int>>(
+                  context: context,
+                  builder: (_) => DownloadSheet(chapters: _chapters, currentIndex: _currentChapterIndex),
+                );
+                if (range != null) _cacheChapters(range[0], range[1]);
               },
             ),
             ListTile(
@@ -665,14 +688,15 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _cacheAllChapters() async {
+  Future<void> _cacheChapters(int start, int end) async {
     if (_chapters.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂无章节可缓存')));
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('开始缓存 ${_chapters.length} 章...')));
+    final total = end - start + 1;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('开始缓存 $total 章...')));
     int cached = 0;
-    for (int i = 0; i < _chapters.length; i++) {
+    for (int i = start; i <= end && i < _chapters.length; i++) {
       final chapter = _chapters[i];
       // 检查是否已有缓存
       final cachedChapters = await _db.getChapters(widget.book.name, widget.book.author);
@@ -841,21 +865,9 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     Navigator.push(context, MaterialPageRoute(builder: (_) => ChapterListScreen(book: widget.book, chapters: _chapters, currentIndex: _currentChapterIndex)));
   }
 
-  void _showSearchInBook() {
-    final controller = TextEditingController();
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: const Text('搜索书籍'),
-      content: TextField(controller: controller, decoration: const InputDecoration(hintText: '输入关键词'), autofocus: true),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-        FilledButton(onPressed: () async {
-          Navigator.pop(context);
-          final keyword = controller.text.trim();
-          if (keyword.isEmpty) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('搜索: $keyword')));
-        }, child: const Text('搜索')),
-      ],
-    ));
+  Future<void> _showSearchInBook() async {
+    final chapterIndex = await Navigator.push<int>(context, MaterialPageRoute(builder: (_) => SearchContentScreen(book: widget.book)));
+    if (chapterIndex != null) _loadChapterContent(chapterIndex);
   }
 
   void _showTranslateDialog() {

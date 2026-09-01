@@ -596,6 +596,16 @@ class DatabaseService {
     await db.insert('tag_group_rules', rule.toMap());
   }
 
+  Future<void> updateTagGroupRule(TagGroupRule rule) async {
+    final db = await database;
+    if (rule.id != null) await db.update('tag_group_rules', rule.toMap(), where: 'id = ?', whereArgs: [rule.id]);
+  }
+
+  Future<void> deleteTagGroupRule(int id) async {
+    final db = await database;
+    await db.delete('tag_group_rules', where: 'id = ?', whereArgs: [id]);
+  }
+
   // 搜索书籍DAO
   Future<List<Book>> getSearchBooks() async {
     final db = await database;
