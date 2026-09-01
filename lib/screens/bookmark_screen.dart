@@ -27,13 +27,13 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
   Future<void> _loadBookmarks() async {
     setState(() => _isLoading = true);
     try {
-      List<Map<String, dynamic>> maps;
+      List<Bookmark> bookmarks;
       if (widget.bookName != null && widget.bookAuthor != null) {
-        maps = await _db.getBookmarks(widget.bookName!, widget.bookAuthor!);
+        bookmarks = await _db.getBookmarks(widget.bookName!, widget.bookAuthor!);
       } else {
         // 获取所有书签
         final db = await _db.database;
-        maps = await db.query('bookmarks', orderBy: 'createTime DESC');
+        bookmarks = (await db.query('bookmarks', orderBy: 'createTime DESC')).map((m) => Bookmark.fromMap(m)).toList();
       }
       _bookmarks = maps.map((m) => Bookmark.fromMap(m)).toList();
     } catch (e) {

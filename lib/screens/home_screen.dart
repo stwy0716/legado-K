@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_recentBooks.length > 6) _recentBooks = _recentBooks.sublist(0, 6);
 
     // 加载阅读记录
-    _readRecords = await _db.getReadRecords(limit: 50);
+    _readRecords = await _db.getReadRecords(50);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final todayMs = today.millisecondsSinceEpoch;
