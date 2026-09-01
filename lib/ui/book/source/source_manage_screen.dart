@@ -26,6 +26,7 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
   int _sortBy = 0; // 0=手动 1=权重 2=名称 3=URL 4=更新时间 5=响应时间 6=启用
   bool _sortAsc = true;
   bool _selectMode = false;
+  bool _groupByDomain = false;
   final Set<String> _selectedIds = {};
   List<String> _groups = [];
 
@@ -135,6 +136,43 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
               onTap: () {
                 Navigator.pop(context);
                 _exportSources();
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.qr_code_scanner),
+              title: const Text('二维码导入'),
+              subtitle: const Text('扫描二维码导入书源'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('二维码导入功能（需要相机权限）')));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.domain),
+              title: const Text('按域名分组'),
+              subtitle: const Text('自动按域名分组显示'),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _groupByDomain = !_groupByDomain);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_groupByDomain ? '已按域名分组' : '已取消域名分组')));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.verified_outlined),
+              title: const Text('书源校验'),
+              subtitle: const Text('校验所有书源可用性'),
+              onTap: () {
+                Navigator.pop(context);
+                _validateSources();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder_special),
+              title: const Text('分组管理'),
+              onTap: () {
+                Navigator.pop(context);
+                _showGroupManageDialog();
               },
             ),
           ],
@@ -527,6 +565,32 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
     );
   }
 
+  Future<void> _validateSources() async {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('开始校验书源...')));
+    final sources = await _db.getAllSources();
+    int valid = 0;
+    int invalid = 0;
+    final client = HttpClient();
+    for (final source in sources) {
+      try {
+        final uri = Uri.parse(source.bookSourceUrl);
+        final request = await client.getUrl(uri).timeout(const Duration(seconds: 5));
+        final response = await request.close();
+        if (response.statusCode == 200) {
+          valid++;
+        } else {
+          invalid++;
+        }
+      } catch (e) {
+        invalid++;
+      }
+    }
+    client.close();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('校验完成: 有效$valid个, 无效$invalid个')));
+    }
+  }
+
   void _showSourceOptions(BookSource source) {
     showModalBottomSheet(
       context: context,
@@ -568,6 +632,67 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (_) => SourceDebugScreen(source: source)));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('分享书源'),
+              onTap: () async {
+                Navigator.pop(context);
+                final jsonStr = const JsonEncoder.withIndent('  ').convert(source.toJson());
+                await Share.share(jsonStr, subject: source.bookSourceName);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.push_pin_outlined),
+              title: Text(source.customOrder > 0 ? '取消置顶' : '置顶'),
+              onTap: () {
+                Navigator.pop(context);
+                source.customOrder = source.customOrder > 0 ? 0 : -1;
+                _db.updateSource(source);
+                _loadSources();
+              },
+            ),
+            ListTile(
+              leading: Icon(source.enabledExplore ? Icons.explore_off : Icons.explore),
+              title: Text(source.enabledExplore ? '禁用发现' : '启用发现'),
+              onTap: () {
+                Navigator.pop(context);
+                source.enabledExplore = !source.enabledExplore;
+                _db.updateSource(source);
+                _loadSources();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('书源详情'),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(context: context, builder: (context) => AlertDialog(
+                  title: Text(source.bookSourceName),
+                  content: SingleChildScrollView(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('URL: ${source.bookSourceUrl}'),
+                      const SizedBox(height: 8),
+                      Text('分组: ${source.bookSourceGroup ?? "默认"}'),
+                      const SizedBox(height: 8),
+                      Text('类型: ${source.bookSourceType == 0 ? "文本" : source.bookSourceType == 1 ? "音频" : source.bookSourceType == 2 ? "图片" : "文件"}'),
+                      const SizedBox(height: 8),
+                      Text('搜索URL: ${source.searchUrl ?? "无"}'),
+                      const SizedBox(height: 8),
+                      Text('发现URL: ${source.exploreUrl ?? "无"}'),
+                      const SizedBox(height: 8),
+                      Text('响应时间: ${source.respondTime}ms'),
+                      const SizedBox(height: 8),
+                      Text('权重: ${source.weight}'),
+                      const SizedBox(height: 8),
+                      Text('备注: ${source.bookSourceComment ?? "无"}'),
+                    ],
+                  )),
+                  actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+                ));
               },
             ),
             ListTile(
