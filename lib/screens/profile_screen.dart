@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/web_service.dart';
 import 'source_manage_screen.dart';
 import 'replace_rule_screen.dart';
 import 'txt_toc_rule_screen.dart';
@@ -10,8 +11,38 @@ import 'reading_stats_screen.dart';
 import 'cache_manage_screen.dart';
 import 'backup_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final WebService _webService = WebService();
+  bool _webServiceRunning = false;
+
+  @override
+  void dispose() {
+    _webService.stop();
+    super.dispose();
+  }
+
+  Future<void> _toggleWebService(bool value) async {
+    if (value) {
+      await _webService.start(port: 1122);
+      setState(() => _webServiceRunning = true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Web服务已启动: ${_webService.address}')));
+      }
+    } else {
+      await _webService.stop();
+      setState(() => _webServiceRunning = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Web服务已停止')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +50,7 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('我的')),
       body: ListView(
         children: [
-          _buildSectionHeader(context, '规则分段'),
+          _buildSectionHeader('规则分段'),
           _buildMenuItem(context, Icons.menu_book_outlined, '书源管理', '管理网络书源', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SourceManageScreen()))),
           _buildMenuItem(context, Icons.find_replace_outlined, '替换净化', '正文内容替换规则', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReplaceRuleScreen()))),
           _buildMenuItem(context, Icons.list_alt_outlined, 'TXT目录规则', '本地TXT目录识别', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TxtTocRuleScreen()))),
@@ -28,7 +59,7 @@ class ProfileScreen extends StatelessWidget {
 
           const Divider(),
 
-          _buildSectionHeader(context, '其他'),
+          _buildSectionHeader('其他'),
           _buildMenuItem(context, Icons.smart_toy_outlined, 'AI聊天', 'AI助手对话', () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('AI聊天功能开发中')))),
           _buildMenuItem(context, Icons.settings_outlined, '设置', '应用设置', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
           _buildMenuItem(context, Icons.bookmark_border, '书签', '所有书签', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookmarkScreen()))),
@@ -40,14 +71,19 @@ class ProfileScreen extends StatelessWidget {
 
           const Divider(),
 
-          _buildSectionHeader(context, 'Web服务'),
+          _buildSectionHeader('Web服务'),
           SwitchListTile(
             secondary: const Icon(Icons.web_outlined),
             title: const Text('Web服务'),
-            subtitle: const Text('通过浏览器管理书架'),
-            value: false,
-            onChanged: (v) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? 'Web服务启动中...' : 'Web服务已停止'))),
+            subtitle: Text(_webServiceRunning ? '地址: ${_webService.address}' : '通过浏览器管理书架'),
+            value: _webServiceRunning,
+            onChanged: _toggleWebService,
           ),
+          if (_webServiceRunning)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('在浏览器中打开上述地址即可管理书架、书源、RSS等', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            ),
 
           const SizedBox(height: 24),
           const Center(child: Text('Legado MD3 v3.26.7', style: TextStyle(color: Colors.grey, fontSize: 12))),
@@ -72,7 +108,7 @@ class ProfileScreen extends StatelessWidget {
     ));
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title) => Padding(
+  Widget _buildSectionHeader(String title) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
     child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
   );
