@@ -40,9 +40,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   Future<void> _loadReadProgress() async {
     final records = await _db.getReadRecords();
     for (final r in records) {
-      if (r['book_name'] == widget.book.name && r['book_author'] == widget.book.author) {
-        _readChapterIndex = (r['chapter_index'] as int?) ?? 0;
-        _readPageIndex = (r['page_index'] as int?) ?? 0;
+      if (r.bookName == widget.book.name && r.author == widget.book.author) {
+        _readChapterIndex = (r.chapterIndex as int?) ?? 0;
+        _readPageIndex = (r.pagePos as int?) ?? 0;
         break;
       }
     }
