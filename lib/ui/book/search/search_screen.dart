@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/data/model/search_book.dart';
 import 'package:legado_md3/data/model/book.dart';
@@ -277,6 +279,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 trailing: IconButton(icon: const Icon(Icons.add), onPressed: () => _addToShelf(book), tooltip: '加入书架'),
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))),
+                onLongPress: () => _showResultMenu(book),
               );
             },
           ),
@@ -289,5 +292,35 @@ class _SearchScreenState extends State<SearchScreen> {
     final colors = [Colors.blueGrey, Colors.brown, Colors.teal, Colors.indigo, Colors.deepOrange, Colors.purple];
     final color = colors[name.hashCode.abs() % colors.length];
     return Container(width: 50, height: 70, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)), child: Center(child: Padding(padding: const EdgeInsets.all(4), child: Text(name, maxLines: 3, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))));
+  }
+
+  void _showResultMenu(SearchBook book) {
+    showModalBottomSheet(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(
+        leading: const Icon(Icons.info_outline),
+        title: const Text('查看详情'),
+        onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))); },
+      ),
+      ListTile(
+        leading: const Icon(Icons.add),
+        title: const Text('加入书架'),
+        onTap: () { Navigator.pop(context); _addToShelf(book); },
+      ),
+      ListTile(
+        leading: const Icon(Icons.swap_horiz),
+        title: const Text('换源'),
+        onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('换源功能'))); },
+      ),
+      ListTile(
+        leading: const Icon(Icons.content_copy),
+        title: const Text('复制书名'),
+        onTap: () async { Navigator.pop(context); await Clipboard.setData(ClipboardData(text: book.name)); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'))); },
+      ),
+      ListTile(
+        leading: const Icon(Icons.share),
+        title: const Text('分享'),
+        onTap: () { Navigator.pop(context); Share.share('《${book.name}》 - ${book.author}'); },
+      ),
+    ])));
   }
 }
