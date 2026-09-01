@@ -49,7 +49,7 @@ class ReadingRecordService {
     final records = await _db.getReadRecords();
     final days = <String>{};
     for (final r in records) {
-      final readDate = r['readDate'] as int?;
+      final readDate = r.date as int?;
       if (readDate != null) {
         final date = DateTime.fromMillisecondsSinceEpoch(readDate);
         days.add('${date.year}-${date.month}-${date.day}');
@@ -69,7 +69,7 @@ class ReadingRecordService {
       result[key] = 0;
     }
     for (final r in records) {
-      final readDate = r['readDate'] as int?;
+      final readDate = r.date as int?;
       if (readDate != null) {
         final date = DateTime.fromMillisecondsSinceEpoch(readDate);
         final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -86,7 +86,7 @@ class ReadingRecordService {
     final records = await _db.getReadRecords();
     final result = <String, int>{};
     for (final r in records) {
-      final key = '${r['bookName']}_${r['author']}';
+      final key = '${r.bookName}_${r.author}';
       result[key] = (result[key] ?? 0) + r.duration;
     }
     return result;

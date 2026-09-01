@@ -35,7 +35,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
         final db = await _db.database;
         bookmarks = (await db.query('bookmarks', orderBy: 'createTime DESC')).map((m) => Bookmark.fromMap(m)).toList();
       }
-      _bookmarks = maps.map((m) => Bookmark.fromMap(m)).toList();
+      _bookmarks = bookmarks;
     } catch (e) {
       _bookmarks = [];
     }

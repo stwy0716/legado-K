@@ -46,7 +46,7 @@ class _CacheManageScreenState extends State<CacheManageScreen> {
       ),
     );
     if (confirmed == true) {
-      await _db.clearChapterContent(book.name, book.author);
+      await _db.clearChapterContent();
       _loadCache();
     }
   }
@@ -69,7 +69,7 @@ class _CacheManageScreenState extends State<CacheManageScreen> {
     );
     if (confirmed == true) {
       for (final book in _books) {
-        await _db.clearChapterContent(book.name, book.author);
+        await _db.clearChapterContent();
       }
       _loadCache();
     }

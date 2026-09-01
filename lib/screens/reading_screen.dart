@@ -701,7 +701,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                     final bm = bookmarks[index];
                     return ListTile(
                       leading: const Icon(Icons.bookmark),
-                      title: Text(bm['chapterTitle']?.toString() ?? '第${bm['chapterIndex']}章'),
+                      title: Text(bm.chapterTitle?.toString() ?? '第${bm.chapterIndex}章'),
                       subtitle: Text('第 ${(bm['pageIndex'] as int? ?? 0) + 1} 页'),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
@@ -713,7 +713,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                       ),
                       onTap: () {
                         Navigator.pop(context);
-                        final chIndex = bm['chapterIndex'] as int? ?? 0;
+                        final chIndex = bm.chapterIndex as int? ?? 0;
                         if (chIndex != _currentChapterIndex) {
                           _loadChapterContent(chIndex);
                         }

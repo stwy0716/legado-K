@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/book.dart';
+import '../models/read_record.dart';
 import '../providers/book_provider.dart';
 import '../services/database_service.dart';
 import '../services/reading_record_service.dart';
@@ -19,7 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final DatabaseService _db = DatabaseService();
   List<Book> _recentBooks = [];
-  List<Map<String, dynamic>> _readRecords = [];
+  List<ReadRecord> _readRecords = [];
   int _todayMinutes = 0;
   int _totalMinutes = 0;
   int _readingDays = 0;
