@@ -80,7 +80,7 @@ class _ChangeSourceScreenState extends State<ChangeSourceScreen> {
         origin: source.bookSourceUrl, originName: source.bookSourceName,
         bookUrl: widget.book.bookUrl, coverUrl: widget.book.coverUrl,
         intro: widget.book.intro, kind: widget.book.kind,
-        latestChapterTitle: widget.book.latestChapterTitle,
+        lastChapter: widget.book.lastChapter,
         lastChapterTime: widget.book.lastChapterTime,
         updateTime: widget.book.updateTime, lastCheckTime: widget.book.lastCheckTime,
         order: widget.book.order, groupId: widget.book.groupId,

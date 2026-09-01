@@ -155,7 +155,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('清空书架'), content: const Text('确定要清空所有书籍吗？'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')), FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(context, true), child: const Text('清空'))]));
         if (confirmed == true) { final provider = Provider.of<BookProvider>(context, listen: false); for (final book in provider.books) { await _db.deleteBook(book.name, book.author); } await provider.loadBooks(); }
       }),
-    ])));
+    ]))));
   }
 
   void _showBookMenu(Book book) {

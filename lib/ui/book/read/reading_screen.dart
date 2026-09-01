@@ -589,14 +589,14 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
               title: const Text('复制当前页'),
               onTap: () async {
                 Navigator.pop(context);
-                if (_currentChapter != null) {
-                  await Clipboard.setData(ClipboardData(text: _currentChapter!.content ?? ''));
+                if (_chapters.isNotEmpty && _currentChapterIndex < _chapters.length) {
+                  await Clipboard.setData(ClipboardData(text: _chapters[_currentChapterIndex].content ?? ''));
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
                 }
               },
             ),
             ListTile(
-              leading: const Icon(Icons.summary),
+              leading: const Icon(Icons.subject),
               title: const Text('章节摘要'),
               onTap: () { Navigator.pop(context); _showChapterSummary(); },
             ),
@@ -871,7 +871,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   }
 
   void _showChapterSummary() {
-    final summary = _currentChapter != null ? _currentChapter!.title : '无';
+    final summary = _chapters.isNotEmpty && _currentChapterIndex < _chapters.length ? _chapters[_currentChapterIndex].title : '无';
     showDialog(context: context, builder: (context) => AlertDialog(
       title: const Text('章节摘要'),
       content: Text('当前章节: $summary\n\n共${_chapters.length}章\n当前第${_currentChapterIndex + 1}章'),
@@ -880,15 +880,15 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   }
 
   void _showContentEditor() {
-    final controller = TextEditingController(text: _currentChapter?.content ?? '');
+    final controller = TextEditingController(text: _chapters.isNotEmpty ? _chapters[_currentChapterIndex].content : null ?? '');
     showDialog(context: context, builder: (context) => AlertDialog(
       title: const Text('内容编辑'),
       content: SizedBox(width: double.maxFinite, child: TextField(controller: controller, maxLines: 10, decoration: const InputDecoration(border: OutlineInputBorder()))),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
         FilledButton(onPressed: () async {
-          if (_currentChapter != null) {
-            _currentChapter!.content = controller.text;
+          if (_chapters.isNotEmpty && _currentChapterIndex < _chapters.length) {
+            _chapters[_currentChapterIndex].content = controller.text;
             await _db.saveChapters(widget.book.name, widget.book.author, _chapters);
             if (mounted) { setState(() {}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('内容已保存'))); }
           }
