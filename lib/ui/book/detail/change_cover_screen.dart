@@ -18,7 +18,7 @@ class _ChangeCoverScreenState extends State<ChangeCoverScreen> {
   @override
   void initState() {
     super.initState();
-    _urlController.text = widget.book.customCoverUrl ?? widget.book.coverUrl ?? '';
+    _urlController.text = widget.book.coverUrl ?? '';
     _previewUrl = _urlController.text;
   }
 
@@ -79,7 +79,7 @@ class _ChangeCoverScreenState extends State<ChangeCoverScreen> {
       name: widget.book.name, author: widget.book.author,
       origin: widget.book.origin, originName: widget.book.originName,
       bookUrl: widget.book.bookUrl, coverUrl: widget.book.coverUrl,
-      customCoverUrl: _urlController.text.isEmpty ? null : _urlController.text,
+      coverUrl: _urlController.text.isEmpty ? null : _urlController.text,
       intro: widget.book.intro, kind: widget.book.kind,
       latestChapterTitle: widget.book.latestChapterTitle,
       lastChapterTime: widget.book.lastChapterTime,

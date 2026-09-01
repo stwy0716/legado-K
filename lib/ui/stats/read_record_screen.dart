@@ -23,7 +23,7 @@ class _ReadRecordScreenState extends State<ReadRecordScreen> {
   }
 
   Future<void> _loadRecords() async {
-    final records = await _db.getReadRecords(limit: 100);
+    final records = await _db.getReadRecords(100);
     final totalDuration = records.fold<int>(0, (sum, r) => sum + (r.duration));
     final days = records.map((r) => DateTime.fromMillisecondsSinceEpoch(r.date).day).toSet().length;
     setState(() {
