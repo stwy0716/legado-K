@@ -24,7 +24,7 @@ class ReadingRecordService {
       return;
     }
 
-    await _db.addReadRecord(_currentBook!, _currentAuthor!, duration, chapterIndex ?? 0, chapterTitle ?? '');
+    await _db.addReadRecord(_currentBook!, _currentAuthor!, duration, DateTime.now().millisecondsSinceEpoch);
     _sessionStart = null;
   }
 
@@ -34,14 +34,14 @@ class ReadingRecordService {
     final startOfDay = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
     final records = await _db.getReadRecords();
     return records
-        .where((r) => (r['readDate'] as int? ?? 0) >= startOfDay)
-        .fold<int>(0, (sum, r) => sum + (r['duration'] as int? ?? 0));
+        .where((r) => r.date >= startOfDay)
+        .fold<int>(0, (sum, r) => sum + r.duration);
   }
 
   /// 获取总阅读时长（秒）
   Future<int> getTotalDuration() async {
     final records = await _db.getReadRecords();
-    return records.fold<int>(0, (sum, r) => sum + (r['duration'] as int? ?? 0));
+    return records.fold<int>(0, (sum, r) => sum + r.duration);
   }
 
   /// 获取阅读天数
@@ -74,7 +74,7 @@ class ReadingRecordService {
         final date = DateTime.fromMillisecondsSinceEpoch(readDate);
         final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
         if (result.containsKey(key)) {
-          result[key] = (result[key] ?? 0) + (r['duration'] as int? ?? 0);
+          result[key] = (result[key] ?? 0) + r.duration;
         }
       }
     }
@@ -87,7 +87,7 @@ class ReadingRecordService {
     final result = <String, int>{};
     for (final r in records) {
       final key = '${r['bookName']}_${r['author']}';
-      result[key] = (result[key] ?? 0) + (r['duration'] as int? ?? 0);
+      result[key] = (result[key] ?? 0) + r.duration;
     }
     return result;
   }

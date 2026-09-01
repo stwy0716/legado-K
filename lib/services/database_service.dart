@@ -95,7 +95,6 @@ class DatabaseService {
     final db = await database;
     await db.delete('rss_stars', where: 'id = ?', whereArgs: [id]);
   }
-}
 
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
