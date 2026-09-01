@@ -41,6 +41,16 @@ class DatabaseService {
     if (_db != null) return _db!;
     _db = await _initDatabase();
     return _db!;
+  
+  // ==================== 章节内容更新 ====================
+  Future<void> updateChapterContent(String bookName, String author, int chapterIndex, String content) async {
+    final db = await database;
+    await db.update('book_chapters', {'content': content}, where: 'bookName = ? AND bookAuthor = ? AND "index" = ?', whereArgs: [bookName, author, chapterIndex]);
+  }
+
+  // ==================== 添加书签别名 ====================
+  Future<void> addBookmark(Bookmark bookmark) async {
+    await insertBookmark(bookmark);
   }
 
   Future<Database> _initDatabase() async {
