@@ -104,6 +104,24 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
             icon: const Icon(Icons.refresh),
             onPressed: _loadSources,
           ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'switch_source': _showSourceSwitcher(); break;
+                case 'category': _showCategoryManager(); break;
+                case 'filter': _showFilterDialog(); break;
+                case 'sort': _showSortDialog(); break;
+                case 'refresh': _loadSources(); break;
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'switch_source', child: ListTile(leading: Icon(Icons.swap_horiz), title: Text('切换书源'))),
+              PopupMenuItem(value: 'category', child: ListTile(leading: Icon(Icons.category), title: Text('分类管理'))),
+              PopupMenuItem(value: 'filter', child: ListTile(leading: Icon(Icons.filter_list), title: Text('筛选'))),
+              PopupMenuItem(value: 'sort', child: ListTile(leading: Icon(Icons.sort), title: Text('排序'))),
+              PopupMenuItem(value: 'refresh', child: ListTile(leading: Icon(Icons.refresh), title: Text('刷新'))),
+            ],
+          ),
         ],
       ),
       body: TabBarView(
@@ -237,5 +255,51 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         );
       },
     );
+  }
+
+  void _showSourceSwitcher() {
+    showModalBottomSheet(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Padding(padding: EdgeInsets.all(16), child: Text('选择发现书源', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+      ..._sources.where((s) => s.enabledExplore).map((s) => ListTile(
+        leading: const Icon(Icons.menu_book),
+        title: Text(s.bookSourceName),
+        subtitle: Text(s.bookSourceUrl, maxLines: 1, overflow: TextOverflow.ellipsis),
+        onTap: () { setState(() => _selectedSource = s); Navigator.pop(context); _loadExplore(); },
+      )),
+    ])));
+  }
+
+  void _showCategoryManager() {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('分类管理'),
+      content: const Text('管理发现页面的分类显示顺序和可见性'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+    ));
+  }
+
+  void _showFilterDialog() {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('筛选'),
+      content: const Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(title: Text('书名')),
+        ListTile(title: Text('作者')),
+        ListTile(title: Text('简介')),
+        ListTile(title: Text('分类')),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+    ));
+  }
+
+  void _showSortDialog() {
+    showDialog(context: context, builder: (context) => SimpleDialog(
+      title: const Text('排序方式'),
+      children: const [
+        SimpleDialogOption(child: Text('默认排序')),
+        SimpleDialogOption(child: Text('名称')),
+        SimpleDialogOption(child: Text('作者')),
+        SimpleDialogOption(child: Text('更新时间')),
+        SimpleDialogOption(child: Text('最新章节')),
+      ],
+    ));
   }
 }
