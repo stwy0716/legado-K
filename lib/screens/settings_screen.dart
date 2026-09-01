@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'theme_manage_screen.dart';
+import 'cloud_tts_screen.dart';
+import 'cache_manage_screen.dart';
+import 'backup_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
@@ -233,6 +237,97 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: const Text('清除书籍内容缓存'),
             onTap: () => _showClearCacheDialog(),
           ),
+          const Divider(),
+
+          // 主题管理
+          _buildSectionHeader('主题管理'),
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: const Text('自定义主题'),
+            subtitle: const Text('管理和创建主题'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ThemeManageScreen())),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_outlined),
+            title: const Text('封面相册'),
+            subtitle: const Text('管理书籍封面'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('封面相册功能开发中'))),
+          ),
+
+          const Divider(),
+
+          // TTS设置
+          _buildSectionHeader('TTS设置'),
+          ListTile(
+            leading: const Icon(Icons.record_voice_over_outlined),
+            title: const Text('TTS引擎管理'),
+            subtitle: const Text('系统/云端TTS引擎'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CloudTtsScreen())),
+          ),
+          ListTile(
+            leading: const Icon(Icons.mic_outlined),
+            title: const Text('朗读语速'),
+            subtitle: const Text('调整TTS朗读速度'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('语速设置功能开发中'))),
+          ),
+
+          const Divider(),
+
+          // 下载缓存
+          _buildSectionHeader('下载缓存'),
+          ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('下载管理'),
+            subtitle: const Text('管理下载任务'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('下载管理功能开发中'))),
+          ),
+          ListTile(
+            leading: const Icon(Icons.storage_outlined),
+            title: const Text('缓存管理'),
+            subtitle: const Text('管理书籍缓存'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CacheManageScreen())),
+          ),
+
+          const Divider(),
+
+          // 翻译设置
+          _buildSectionHeader('翻译设置'),
+          SwitchListTile(
+            title: const Text('启用翻译'),
+            value: false,
+            onChanged: (v) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? '翻译已启用' : '翻译已关闭'))),
+          ),
+          ListTile(
+            leading: const Icon(Icons.translate_outlined),
+            title: const Text('翻译引擎'),
+            subtitle: const Text('选择翻译服务'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('翻译引擎功能开发中'))),
+          ),
+
+          const Divider(),
+
+          // 实验室
+          _buildSectionHeader('实验室'),
+          SwitchListTile(
+            title: const Text('漫画阅读'),
+            subtitle: const Text('启用漫画阅读模式'),
+            value: true,
+            onChanged: (v) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? '漫画阅读已启用' : '漫画阅读已关闭'))),
+          ),
+          SwitchListTile(
+            title: const Text('模拟阅读'),
+            subtitle: const Text('自动模拟翻页阅读'),
+            value: false,
+            onChanged: (v) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? '模拟阅读已启用' : '模拟阅读已关闭'))),
+          ),
+
           const Divider(),
 
           // 其他

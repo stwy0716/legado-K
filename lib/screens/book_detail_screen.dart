@@ -7,6 +7,7 @@ import '../services/database_service.dart';
 import '../services/book_source_engine.dart';
 import 'reading_screen.dart';
 import 'chapter_list_screen.dart';
+import 'character_list_screen.dart';
 
 class BookDetailScreen extends StatefulWidget {
   final Book book;
@@ -97,6 +98,11 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               leading: const Icon(Icons.image),
               title: const Text('换封面'),
               onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('换封面功能开发中'))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.people_outline),
+              title: const Text('角色列表'),
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => CharacterListScreen(book: widget.book))); },
             ),
             ListTile(
               leading: const Icon(Icons.share),
