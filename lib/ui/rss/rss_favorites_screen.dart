@@ -12,7 +12,7 @@ class RssFavoritesScreen extends StatefulWidget {
 }
 
 class _RssFavoritesScreenState extends State<RssFavoritesScreen> {
-  final _db = AppDatabase();
+  final _db = DatabaseService();
   List<RssArticle> _articles = [];
   bool _loading = true;
 

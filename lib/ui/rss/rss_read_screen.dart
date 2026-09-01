@@ -15,7 +15,7 @@ class RssReadScreen extends StatefulWidget {
 }
 
 class _RssReadScreenState extends State<RssReadScreen> {
-  final _db = AppDatabase();
+  final _db = DatabaseService();
   late RssArticle _article;
   bool _isFavorite = false;
   double _fontSize = 18;
