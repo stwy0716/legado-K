@@ -119,11 +119,11 @@ class DatabaseService {
     return maps.map((m) => BookChapter.fromMap(m)).toList();
   }
 
-  Future<void> insertChapters(List<BookChapter> chapters) async {
+  Future<void> insertChapters(String bookName, String bookAuthor, List<BookChapter> chapters) async {
     final db = await database;
     final batch = db.batch();
-    for (final c in chapters) {
-      batch.insert('book_chapters', c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    for (final ch in chapters) {
+      batch.insert('book_chapters', ch.toMap(bookName, bookAuthor), conflictAlgorithm: ConflictAlgorithm.replace);
     }
     await batch.commit();
   }
@@ -132,8 +132,8 @@ class DatabaseService {
     final db = await database;
     await db.delete('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [bookName, bookAuthor]);
     final batch = db.batch();
-    for (final c in chapters) {
-      batch.insert('book_chapters', c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    for (final ch in chapters) {
+      batch.insert('book_chapters', ch.toMap(bookName, bookAuthor), conflictAlgorithm: ConflictAlgorithm.replace);
     }
     await batch.commit();
   }
