@@ -69,11 +69,11 @@ class _CoverConfigScreenState extends State<CoverConfigScreen> {
 
   Future<void> _pickColor(int current, ValueChanged<int> onSave) async {
     const colors = [0xFF607D8B, 0xFFE57373, 0xFFFFB74D, 0xFFFFF176, 0xFF81C784, 0xFF64B5F6, 0xFFBA68C8, 0xFFFFFFFF, 0xFF424242];
-    showDialog(context: context, builder: (c) => AlertDialog(
+    showDialog(context: context, builder: (ctx) => AlertDialog(
       title: const Text('选择颜色'),
-      content: Wrap(spacing: 12, runSpacing: 12, children: colors.map((c) => GestureDetector(
-        onTap: () { Navigator.pop(c); onSave(c); },
-        child: Container(width: 40, height: 40, decoration: BoxDecoration(color: Color(c), shape: BoxShape.circle, border: Border.all(color: c == current ? Colors.black : Colors.grey, width: c == current ? 3 : 1))),
+      content: Wrap(spacing: 12, runSpacing: 12, children: colors.map((colorVal) => GestureDetector(
+        onTap: () { Navigator.pop(ctx); onSave(colorVal); },
+        child: Container(width: 40, height: 40, decoration: BoxDecoration(color: Color(colorVal), shape: BoxShape.circle, border: Border.all(color: colorVal == current ? Colors.black : Colors.grey, width: colorVal == current ? 3 : 1))),
       )).toList()),
     ));
   }
