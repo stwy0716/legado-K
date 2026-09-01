@@ -81,9 +81,9 @@ class _ChangeSourceScreenState extends State<ChangeSourceScreen> {
         bookUrl: widget.book.bookUrl, coverUrl: widget.book.coverUrl,
         intro: widget.book.intro, kind: widget.book.kind,
         lastChapter: widget.book.lastChapter,
-        lastChapterTime: widget.book.lastChapterTime,
-        updateTime: widget.book.updateTime, lastCheckTime: widget.book.lastCheckTime,
-        order: widget.book.order, groupId: widget.book.groupId,
+        latestChapterTime: widget.book.latestChapterTime,
+        lastCheckTime: widget.book.lastCheckTime,
+        order: widget.book.order,
       );
       await _db.updateBook(updatedBook);
       if (mounted) {

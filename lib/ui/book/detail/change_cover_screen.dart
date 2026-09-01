@@ -78,13 +78,12 @@ class _ChangeCoverScreenState extends State<ChangeCoverScreen> {
     final updatedBook = Book(
       name: widget.book.name, author: widget.book.author,
       origin: widget.book.origin, originName: widget.book.originName,
-      bookUrl: widget.book.bookUrl, coverUrl: widget.book.coverUrl,
-      coverUrl: _urlController.text.isEmpty ? null : _urlController.text,
+      bookUrl: widget.book.bookUrl, coverUrl: _urlController.text.isEmpty ? null : _urlController.text,
       intro: widget.book.intro, kind: widget.book.kind,
-      latestChapterTitle: widget.book.latestChapterTitle,
-      lastChapterTime: widget.book.lastChapterTime,
-      updateTime: widget.book.updateTime, lastCheckTime: widget.book.lastCheckTime,
-      order: widget.book.order, groupId: widget.book.groupId,
+      lastChapter: widget.book.lastChapter,
+      latestChapterTime: widget.book.latestChapterTime,
+      lastCheckTime: widget.book.lastCheckTime,
+      order: widget.book.order,
     );
     await _db.updateBook(updatedBook);
     if (mounted) {
