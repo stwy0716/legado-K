@@ -6,6 +6,7 @@ import 'package:legado_md3/data/model/rss_source.dart';
 import 'package:legado_md3/data/model/rss_article.dart';
 import 'package:legado_md3/ui/rss/rss_read_screen.dart';
 import 'package:legado_md3/ui/rss/rss_source_edit_screen.dart';
+import 'package:legado_md3/ui/rss/rss_favorites_screen.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/http/rss_service.dart';
 
@@ -89,6 +90,11 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
       appBar: AppBar(
         title: const Text('订阅'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.star_border),
+            tooltip: '收藏文章',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RssFavoritesScreen())),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshAll,
