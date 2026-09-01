@@ -46,6 +46,7 @@ class BookSource {
 
   // 变量
   String? variableComment;
+  String? jsLib;
   String? variable;
 
   BookSource({
@@ -82,6 +83,7 @@ class BookSource {
     this.ruleReview,
     this.ruleImage,
     this.variableComment,
+    this.jsLib,
     this.variable,
   });
 
@@ -131,6 +133,7 @@ class BookSource {
       ruleReview: _parseRule(json['ruleReview']),
       ruleImage: _parseRule(json['ruleImage']),
       variableComment: json['variableComment'],
+      jsLib: json['jsLib'],
       variable: json['variable'],
     );
   }
@@ -182,6 +185,7 @@ class BookSource {
     'ruleReview': ruleReview,
     'ruleImage': ruleImage,
     'variableComment': variableComment,
+    'jsLib': jsLib,
     'variable': variable,
   };
 
@@ -222,6 +226,7 @@ class BookSource {
     'ruleReview': ruleReview != null ? jsonEncode(ruleReview) : null,
     'ruleImage': ruleImage != null ? jsonEncode(ruleImage) : null,
     'variableComment': variableComment,
+    'jsLib': jsLib,
     'variable': variable,
   };
 
