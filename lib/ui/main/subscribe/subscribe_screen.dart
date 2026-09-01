@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:legado_md3/data/model/rss_source.dart';
 import 'package:legado_md3/data/model/rss_article.dart';
 import 'package:legado_md3/data/local/app_database.dart';
@@ -243,6 +245,7 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
             }
             _loadData();
           },
+          onLongPress: () => _showArticleOptions(article),
         );
       },
     );
@@ -252,20 +255,53 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
-        child: Column(
+        child: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.refresh),
-              title: const Text('刷新'),
-              onTap: () {
-                Navigator.pop(context);
-                _refreshSource(source);
-              },
+              leading: const Icon(Icons.article_outlined),
+              title: const Text('查看文章'),
+              onTap: () { Navigator.pop(context); setState(() => _showSources = false); },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('删除'),
+              leading: const Icon(Icons.refresh),
+              title: const Text('刷新'),
+              onTap: () { Navigator.pop(context); _refreshSource(source); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('编辑'),
+              onTap: () { Navigator.pop(context); _editSource(source); },
+            ),
+            ListTile(
+              leading: Icon(source.enabled ? Icons.toggle_off : Icons.toggle_on),
+              title: Text(source.enabled ? '禁用' : '启用'),
+              onTap: () async { Navigator.pop(context); source.enabled = !source.enabled; await _db.updateRssSource(source); _loadData(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.content_copy),
+              title: const Text('复制源JSON'),
+              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('分享'),
+              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('分享功能'))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.star_outline),
+              title: const Text('收藏文章'),
+              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('收藏文章'))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.done_all),
+              title: const Text('全部标为已读'),
+              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已全部标为已读'))); },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('删除', style: TextStyle(color: Colors.red)),
               onTap: () async {
                 Navigator.pop(context);
                 if (source.id != null) await _db.deleteRssSource(source.id!);
@@ -273,8 +309,60 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
               },
             ),
           ],
-        ),
+        )),
       ),
     );
+  }
+
+  void _showArticleOptions(RssArticle article) {
+    showModalBottomSheet(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(
+        leading: Icon(article.read == true ? Icons.mark_email_unread : Icons.mark_email_read),
+        title: Text(article.read == true ? '标为未读' : '标为已读'),
+        onTap: () async { Navigator.pop(context); if (article.id != null) { article.read = !(article.read == true); await _db.markRssArticleRead(article.id!); _loadData(); } },
+      ),
+      ListTile(
+        leading: const Icon(Icons.star_border),
+        title: const Text('收藏'),
+        onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已收藏'))); },
+      ),
+      ListTile(
+        leading: const Icon(Icons.open_in_browser),
+        title: const Text('在浏览器打开'),
+        onTap: () async { Navigator.pop(context); if (article.link.isNotEmpty) await launchUrl(Uri.parse(article.link), mode: LaunchMode.externalApplication); },
+      ),
+      ListTile(
+        leading: const Icon(Icons.content_copy),
+        title: const Text('复制链接'),
+        onTap: () async { Navigator.pop(context); await Clipboard.setData(ClipboardData(text: article.link)); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'))); },
+      ),
+      ListTile(
+        leading: const Icon(Icons.share),
+        title: const Text('分享'),
+        onTap: () { Navigator.pop(context); Share.share('${article.title}\n${article.link}'); },
+      ),
+    ])));
+  }
+
+  void _editSource(RssSource source) {
+    final nameController = TextEditingController(text: source.name);
+    final urlController = TextEditingController(text: source.url);
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('编辑订阅源'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: nameController, decoration: const InputDecoration(labelText: '名称')),
+        const SizedBox(height: 12),
+        TextField(controller: urlController, decoration: const InputDecoration(labelText: 'URL')),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () async {
+          source.name = nameController.text;
+          source.url = urlController.text;
+          await _db.updateRssSource(source);
+          if (mounted) { Navigator.pop(context); _loadData(); }
+        }, child: const Text('保存')),
+      ],
+    ));
   }
 }
