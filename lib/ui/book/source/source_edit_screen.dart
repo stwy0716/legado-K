@@ -29,6 +29,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
   late TextEditingController _bookUrlPattern;
   late TextEditingController _header;
   late TextEditingController _variableComment;
+  late TextEditingController _jsLib;
 
   // 搜索
   late TextEditingController _searchUrl;
@@ -130,6 +131,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
     _bookUrlPattern = TextEditingController();
     _header = TextEditingController();
     _variableComment = TextEditingController();
+    _jsLib = TextEditingController();
     _searchUrl = TextEditingController();
     _checkKeyWord = TextEditingController();
     _searchBookList = TextEditingController();
@@ -190,7 +192,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
   void _disposeAll() {
     for (final c in [
       _bookSourceUrl, _bookSourceName, _bookSourceGroup, _bookSourceComment,
-      _loginUrl, _loginUi, _loginCheckJs, _coverDecodeJs, _bookUrlPattern, _header, _variableComment,
+      _loginUrl, _loginUi, _loginCheckJs, _coverDecodeJs, _bookUrlPattern, _header, _variableComment, _jsLib,
       _searchUrl, _checkKeyWord, _searchBookList, _searchName, _searchAuthor, _searchKind,
       _searchWordCount, _searchLastChapter, _searchIntro, _searchCoverUrl, _searchBookUrl,
       _exploreUrl, _exploreBookList, _exploreName, _exploreAuthor, _exploreKind,
@@ -223,6 +225,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
     _bookUrlPattern.text = s.bookUrlPattern ?? '';
     _header.text = s.header ?? '';
     _variableComment.text = s.variableComment ?? '';
+    _jsLib.text = s.jsLib ?? '';
     _enabled = s.enabled;
     _enabledExplore = s.enabledExplore ?? false;
     _eventListener = s.eventListener ?? false;
@@ -328,6 +331,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
       bookUrlPattern: _bookUrlPattern.text.trim().isEmpty ? null : _bookUrlPattern.text.trim(),
       header: _header.text.trim().isEmpty ? null : _header.text.trim(),
       variableComment: _variableComment.text.trim().isEmpty ? null : _variableComment.text.trim(),
+      jsLib: _jsLib.text.trim().isEmpty ? null : _jsLib.text.trim(),
       searchUrl: _searchUrl.text.trim().isEmpty ? null : _searchUrl.text.trim(),
       exploreUrl: _exploreUrl.text.trim().isEmpty ? null : _exploreUrl.text.trim(),
       exploreScreen: null,
@@ -428,6 +432,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
     _bookUrlPattern.text = s.bookUrlPattern ?? '';
     _header.text = s.header ?? '';
     _variableComment.text = s.variableComment ?? '';
+    _jsLib.text = s.jsLib ?? '';
     _enabled = s.enabled;
     _enabledExplore = s.enabledExplore ?? false;
     _eventListener = s.eventListener ?? false;
@@ -520,6 +525,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
       bookUrlPattern: _bookUrlPattern.text.trim().isEmpty ? null : _bookUrlPattern.text.trim(),
       header: _header.text.trim().isEmpty ? null : _header.text.trim(),
       variableComment: _variableComment.text.trim().isEmpty ? null : _variableComment.text.trim(),
+      jsLib: _jsLib.text.trim().isEmpty ? null : _jsLib.text.trim(),
       searchUrl: _searchUrl.text.trim().isEmpty ? null : _searchUrl.text.trim(),
       exploreUrl: _exploreUrl.text.trim().isEmpty ? null : _exploreUrl.text.trim(),
       ruleSearch: _buildRule({
@@ -732,6 +738,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
         _buildTextField(_bookUrlPattern, '书籍URL规则', hint: '正则匹配书籍URL'),
         _buildTextField(_header, 'HTTP请求头', hint: 'JSON格式'),
         _buildTextField(_variableComment, '变量注释', hint: '变量说明'),
+        _buildTextField(_jsLib, 'jsLib', hint: 'JS库脚本'),
         const SizedBox(height: 24),
       ],
     );
