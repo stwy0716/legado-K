@@ -16,6 +16,9 @@ class ReplaceRule {
     required this.replaceRule,
     required this.replacement,
     this.enable = true,
+    this.isTitle = false,
+    this.isContent = true,
+    this.isRegex = true,
     this.scope,
     this.order,
   });
