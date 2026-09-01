@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/data/local/app_database.dart';
@@ -8,6 +9,13 @@ import 'package:legado_md3/ui/book/detail/book_detail_screen.dart';
 import 'package:legado_md3/ui/book/read/reading_screen.dart';
 import 'package:legado_md3/ui/book/local_import_screen.dart';
 import 'package:legado_md3/ui/book/search/search_screen.dart';
+import 'package:legado_md3/ui/book/detail/change_source_screen.dart';
+import 'package:legado_md3/ui/book/detail/change_cover_screen.dart';
+import 'package:legado_md3/ui/bookmark/book_marking_screen.dart';
+import 'package:legado_md3/ui/main/bookshelf/group_manage_screen.dart';
+import 'package:legado_md3/ui/book/source/source_manage_screen.dart';
+import 'package:legado_md3/ui/stats/read_record_screen.dart';
+import 'package:legado_md3/ui/config/settings_screen.dart';
 
 class BookshelfScreen extends StatefulWidget {
   const BookshelfScreen({super.key});
@@ -126,13 +134,21 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   }
 
   void _showMoreMenu() {
-    showModalBottomSheet(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+    showModalBottomSheet(context: context, builder: (context) => SafeArea(child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
       ListTile(leading: const Icon(Icons.search), title: const Text('搜索书籍'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())); }),
       ListTile(leading: const Icon(Icons.refresh), title: const Text('一键更新'), onTap: () { Navigator.pop(context); _updateAllBooks(); }),
+      const Divider(),
       ListTile(leading: const Icon(Icons.folder_open), title: const Text('本地导入'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const LocalImportScreen())); }),
+      ListTile(leading: const Icon(Icons.cloud_download), title: const Text('网络导入'), onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('网络导入功能'))); }),
+      const Divider(),
       ListTile(leading: const Icon(Icons.view_module), title: const Text('布局设置'), onTap: () { Navigator.pop(context); _showLayoutDialog(); }),
       ListTile(leading: const Icon(Icons.sort), title: const Text('排序设置'), onTap: () { Navigator.pop(context); _showSortDialog(); }),
+      ListTile(leading: const Icon(Icons.folder_special), title: const Text('分组管理'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupManageScreen())); }),
       ListTile(leading: const Icon(Icons.select_all), title: const Text('多选模式'), onTap: () { Navigator.pop(context); setState(() => _selectMode = true); }),
+      const Divider(),
+      ListTile(leading: const Icon(Icons.menu_book_outlined), title: const Text('书源管理'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const SourceManageScreen())); }),
+      ListTile(leading: const Icon(Icons.bar_chart_outlined), title: const Text('阅读记录'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const ReadRecordScreen())); }),
+      ListTile(leading: const Icon(Icons.settings), title: const Text('设置'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())); }),
       const Divider(),
       ListTile(leading: const Icon(Icons.delete_sweep, color: Colors.red), title: const Text('清空书架', style: TextStyle(color: Colors.red)), onTap: () async {
         Navigator.pop(context);
@@ -143,9 +159,10 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   }
 
   void _showBookMenu(Book book) {
-    showModalBottomSheet(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+    showModalBottomSheet(context: context, builder: (context) => SafeArea(child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
       ListTile(leading: const Icon(Icons.play_arrow), title: const Text('开始阅读'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))); }),
       ListTile(leading: const Icon(Icons.info_outline), title: const Text('书籍详情'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: book))); }),
+      const Divider(),
       ListTile(leading: const Icon(Icons.refresh), title: const Text('更新目录'), onTap: () async {
         Navigator.pop(context);
         if (book.local || book.origin == null || book.noteUrl == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('本地书籍无需更新'))); return; }
@@ -154,14 +171,35 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         if (source == null) return;
         try { final chapters = await _engine.getToc(source, book.noteUrl!); await _db.saveChapters(book.name, book.author, chapters); book.lastChapter = chapters.last.title; book.lastChapterIndex = chapters.length - 1; await _db.updateBook(book); if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('更新完成，共${chapters.length}章'))); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('更新失败: $e'))); }
       }),
+      ListTile(leading: const Icon(Icons.swap_horiz), title: const Text('换源'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeSourceScreen(book: book))); }),
+      ListTile(leading: const Icon(Icons.image_outlined), title: const Text('换封面'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeCoverScreen(book: book))); }),
       ListTile(leading: const Icon(Icons.download), title: const Text('缓存全部'), onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('开始缓存...'))); }),
+      ListTile(leading: const Icon(Icons.flag_outlined), title: const Text('书籍标记'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => BookMarkingScreen(bookName: book.name, author: book.author))); }),
+      ListTile(leading: const Icon(Icons.bookmark_border), title: const Text('添加书签'), onTap: () async {
+        Navigator.pop(context);
+        final bookmark = await _db.getBookmarks(book.name, book.author);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('当前共${bookmark.length}个书签')));
+      }),
+      const Divider(),
       ListTile(leading: const Icon(Icons.move_down), title: const Text('移动到分组'), onTap: () { Navigator.pop(context); _showMoveGroupDialog(book); }),
+      ListTile(leading: const Icon(Icons.push_pin_outlined), title: Text(book.order != null && book.order! < 0 ? '取消置顶' : '置顶'), onTap: () async {
+        Navigator.pop(context);
+        book.order = (book.order != null && book.order! < 0) ? 0 : -1;
+        await _db.updateBook(book);
+        await Provider.of<BookProvider>(context, listen: false).loadBooks();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(book.order != null && book.order! < 0 ? '已置顶' : '已取消置顶')));
+      }),
+      ListTile(leading: const Icon(Icons.share), title: const Text('分享'), onTap: () async {
+        Navigator.pop(context);
+        await Share.share('《${book.name}》 - ${book.author}\n${book.intro ?? ''}', subject: book.name);
+      }),
+      const Divider(),
       ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: const Text('删除', style: TextStyle(color: Colors.red)), onTap: () async {
         Navigator.pop(context);
         final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: Text('删除《${book.name}》'), content: const Text('确定要删除这本书吗？'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')), FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(context, true), child: const Text('删除'))]));
         if (confirmed == true) { await _db.deleteBook(book.name, book.author); await Provider.of<BookProvider>(context, listen: false).loadBooks(); }
       }),
-    ])));
+    ]))));
   }
 
   void _showMoveGroupDialog(Book book) {
