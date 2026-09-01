@@ -240,7 +240,7 @@ class WebService {
 
   Future<Response> _saveRssSource(Request request) async {
     final body = await request.readAsString();
-    final data = jsonDecode(body); final source = RssSource(name: data['name'] ?? '', url: data['url'] ?? '', group: data['group'], enabled: data['enabled'] ?? true);
+    final data = jsonDecode(body); final source = RssSource(sourceName: data['name'] ?? '', sourceUrl: data['url'] ?? '', sourceGroup: data['group'], enabled: data['enabled'] ?? true);
     await _db.insertRssSource(source);
     return _jsonResponse({'success': true});
   }

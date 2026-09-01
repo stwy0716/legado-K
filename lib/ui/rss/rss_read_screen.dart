@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../data/local/app_database.dart';
-import '../../../data/model/rss_article.dart';
+import 'package:legado_md3/data/local/app_database.dart';
+import 'package:legado_md3/data/model/rss_article.dart';
 
 /// RSS文章阅读页面 - 对齐原版RssReadScreen
 class RssReadScreen extends StatefulWidget {

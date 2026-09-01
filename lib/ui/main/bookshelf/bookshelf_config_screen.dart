@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../providers/book_provider.dart';
+import '../../../../di/book_provider.dart';
 
 /// 书架配置页面 - 对齐原版BookshelfConfigSheet
 class BookshelfConfigScreen extends StatefulWidget {

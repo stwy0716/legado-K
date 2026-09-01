@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../data/model/rss_source.dart';
-import '../../../data/local/app_database.dart';
+import 'package:legado_md3/data/local/app_database.dart';
 
 /// RSS源编辑页面 - 对齐原版RssSourceEditScreen(4 Tab)
 class RssSourceEditScreen extends StatefulWidget {
