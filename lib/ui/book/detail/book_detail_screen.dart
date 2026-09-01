@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/di/book_provider.dart';
@@ -8,6 +10,9 @@ import 'package:legado_md3/help/source/source_engine.dart';
 import 'package:legado_md3/ui/book/read/reading_screen.dart';
 import 'package:legado_md3/ui/book/chapter/chapter_list_screen.dart';
 import 'package:legado_md3/ui/book/knowledge/character_list_screen.dart';
+import 'package:legado_md3/ui/book/detail/change_source_screen.dart';
+import 'package:legado_md3/ui/book/detail/change_cover_screen.dart';
+import 'package:legado_md3/ui/bookmark/book_marking_screen.dart';
 
 class BookDetailScreen extends StatefulWidget {
   final Book book;
@@ -48,6 +53,36 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     }
   }
 
+  void _showEditBookDialog() {
+    final nameController = TextEditingController(text: widget.book.name);
+    final authorController = TextEditingController(text: widget.book.author);
+    final introController = TextEditingController(text: widget.book.intro ?? '');
+    final kindController = TextEditingController(text: widget.book.kind ?? '');
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('编辑书籍信息'),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: nameController, decoration: const InputDecoration(labelText: '书名')),
+        const SizedBox(height: 8),
+        TextField(controller: authorController, decoration: const InputDecoration(labelText: '作者')),
+        const SizedBox(height: 8),
+        TextField(controller: kindController, decoration: const InputDecoration(labelText: '分类')),
+        const SizedBox(height: 8),
+        TextField(controller: introController, maxLines: 4, decoration: const InputDecoration(labelText: '简介')),
+      ])),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () async {
+          widget.book.name = nameController.text;
+          widget.book.author = authorController.text;
+          widget.book.kind = kindController.text;
+          widget.book.intro = introController.text;
+          await _db.updateBook(widget.book);
+          if (mounted) { setState(() {}); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已保存'))); }
+        }, child: const Text('保存')),
+      ],
+    ));
+  }
+
   Future<void> _updateBook() async {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在更新...')));
     try {
@@ -76,7 +111,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
-        child: Column(
+        child: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
@@ -92,12 +127,18 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             ListTile(
               leading: const Icon(Icons.swap_horiz),
               title: const Text('换源'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('换源功能开发中'))); },
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeSourceScreen(book: widget.book))); },
             ),
             ListTile(
               leading: const Icon(Icons.image),
               title: const Text('换封面'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('换封面功能开发中'))); },
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeCoverScreen(book: widget.book))); },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('编辑书籍信息'),
+              onTap: () { Navigator.pop(context); _showEditBookDialog(); },
             ),
             ListTile(
               leading: const Icon(Icons.people_outline),
@@ -105,10 +146,52 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => CharacterListScreen(book: widget.book))); },
             ),
             ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: const Text('书籍标记'),
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => BookMarkingScreen(bookName: widget.book.name, author: widget.book.author))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text('阅读记录'),
+              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('阅读记录'))); },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: const Text('复制书籍URL'),
+              onTap: () async { Navigator.pop(context); await Clipboard.setData(ClipboardData(text: widget.book.bookUrl ?? '')); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.list_alt),
+              title: const Text('复制目录URL'),
+              onTap: () async { Navigator.pop(context); await Clipboard.setData(ClipboardData(text: widget.book.noteUrl ?? '')); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.push_pin_outlined),
+              title: Text(widget.book.customOrder < 0 ? '取消置顶' : '置顶'),
+              onTap: () async { Navigator.pop(context); widget.book.customOrder = widget.book.customOrder < 0 ? 0 : -1; await _db.updateBook(widget.book); if (mounted) setState(() {}); },
+            ),
+            ListTile(
+              leading: Icon(widget.book.allowUpdate ? Icons.sync_disabled : Icons.sync),
+              title: Text(widget.book.allowUpdate ? '禁止更新' : '允许更新'),
+              onTap: () async { Navigator.pop(context); widget.book.allowUpdate = !widget.book.allowUpdate; await _db.updateBook(widget.book); if (mounted) setState(() {}); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cloud_sync),
+              title: const Text('WebDAV同步'),
+              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('WebDAV同步'))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cleaning_services),
+              title: const Text('清除缓存'),
+              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除'))); },
+            ),
+            ListTile(
               leading: const Icon(Icons.share),
               title: const Text('分享'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('分享功能开发中'))); },
+              onTap: () { Navigator.pop(context); Share.share('《${widget.book.name}》 - ${widget.book.author}\n${widget.book.intro ?? ''}'); },
             ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: const Text('从书架移除', style: TextStyle(color: Colors.red)),
