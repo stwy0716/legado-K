@@ -570,6 +570,48 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: const Icon(Icons.list_alt),
+              title: const Text('目录'),
+              onTap: () { Navigator.pop(context); _showChapterList(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.search),
+              title: const Text('搜索'),
+              onTap: () { Navigator.pop(context); _showSearchInBook(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.translate),
+              title: const Text('翻译'),
+              onTap: () { Navigator.pop(context); _showTranslateDialog(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.content_copy),
+              title: const Text('复制当前页'),
+              onTap: () async {
+                Navigator.pop(context);
+                if (_currentChapter != null) {
+                  await Clipboard.setData(ClipboardData(text: _currentChapter!.content ?? ''));
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.summary),
+              title: const Text('章节摘要'),
+              onTap: () { Navigator.pop(context); _showChapterSummary(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_note),
+              title: const Text('内容编辑'),
+              onTap: () { Navigator.pop(context); _showContentEditor(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.find_replace),
+              title: const Text('生效替换'),
+              onTap: () { Navigator.pop(context); _showReplaceRules(); },
+            ),
+            const Divider(),
+            ListTile(
               leading: const Icon(Icons.info_outline),
               title: const Text('书籍详情'),
               onTap: () {
@@ -793,6 +835,79 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
         ),
       ),
     );
+  }
+
+  void _showChapterList() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ChapterListScreen(book: widget.book, chapters: _chapters, currentIndex: _currentChapterIndex)));
+  }
+
+  void _showSearchInBook() {
+    final controller = TextEditingController();
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('搜索书籍'),
+      content: TextField(controller: controller, decoration: const InputDecoration(hintText: '输入关键词'), autofocus: true),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () async {
+          Navigator.pop(context);
+          final keyword = controller.text.trim();
+          if (keyword.isEmpty) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('搜索: $keyword')));
+        }, child: const Text('搜索')),
+      ],
+    ));
+  }
+
+  void _showTranslateDialog() {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('翻译设置'),
+      content: const Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(leading: Icon(Icons.language), title: Text('翻译引擎'), subtitle: Text('百度翻译'), trailing: Icon(Icons.chevron_right)),
+        ListTile(leading: Icon(Icons.swap_horiz), title: Text('目标语言'), subtitle: Text('简体中文'), trailing: Icon(Icons.chevron_right)),
+        SwitchListTile(title: Text('自动翻译'), value: false, onChanged: null),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+    ));
+  }
+
+  void _showChapterSummary() {
+    final summary = _currentChapter != null ? _currentChapter!.title : '无';
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('章节摘要'),
+      content: Text('当前章节: $summary\n\n共${_chapters.length}章\n当前第${_currentChapterIndex + 1}章'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+    ));
+  }
+
+  void _showContentEditor() {
+    final controller = TextEditingController(text: _currentChapter?.content ?? '');
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('内容编辑'),
+      content: SizedBox(width: double.maxFinite, child: TextField(controller: controller, maxLines: 10, decoration: const InputDecoration(border: OutlineInputBorder()))),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        FilledButton(onPressed: () async {
+          if (_currentChapter != null) {
+            _currentChapter!.content = controller.text;
+            await _db.saveChapters(widget.book.name, widget.book.author, _chapters);
+            if (mounted) { setState(() {}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('内容已保存'))); }
+          }
+          Navigator.pop(context);
+        }, child: const Text('保存')),
+      ],
+    ));
+  }
+
+  void _showReplaceRules() {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('生效替换规则'),
+      content: const Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(leading: Icon(Icons.rule), title: Text('全局替换规则'), subtitle: Text('0条已启用'), trailing: Icon(Icons.chevron_right)),
+        ListTile(leading: Icon(Icons.rule_folder), title: Text('书源替换规则'), subtitle: Text('0条已启用'), trailing: Icon(Icons.chevron_right)),
+        ListTile(leading: Icon(Icons.preview), title: Text('预览替换效果'), trailing: Icon(Icons.chevron_right)),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+    ));
   }
 
   void _showReadingSettings() {
