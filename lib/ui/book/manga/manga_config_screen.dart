@@ -86,7 +86,7 @@ class _MangaConfigScreenState extends State<MangaConfigScreen> {
         SwitchListTile(dense: true, title: const Text('禁用双指缩放'), value: _disableScale, onChanged: (v) { setState(() => _disableScale = v); _set('manga_noScale', v); }),
         SwitchListTile(dense: true, title: const Text('禁用点击滚动'), value: _disableClickScroll, onChanged: (v) { setState(() => _disableClickScroll = v); _set('manga_noClickScroll', v); }),
         SwitchListTile(dense: true, title: const Text('音量键翻页'), value: _volumeKeyPage, onChanged: (v) { setState(() => _volumeKeyPage = v); _set('manga_volumeKey', v); }),
-        SwitchListTile(dense: true, title: const Text('音量键反向'), value: _reverseVolumeKey, enabled: _volumeKeyPage, onChanged: (v) { setState(() => _reverseVolumeKey = v); _set('manga_reverseVolumeKey', v); }),
+        SwitchListTile(dense: true, title: const Text('音量键反向'), value: _reverseVolumeKey, onChanged: _volumeKeyPage ? (v) { setState(() => _reverseVolumeKey = v); _set("manga_reverseVolumeKey", v); } : null),
         _section('动画与画面'),
         SwitchListTile(dense: true, title: const Text('禁用滚动动画'), value: _disableScrollAnim, onChanged: (v) { setState(() => _disableScrollAnim = v); _set('manga_noScrollAnim', v); }),
         SwitchListTile(dense: true, title: const Text('禁用淡入淡出'), value: _disableCrossFade, onChanged: (v) { setState(() => _disableCrossFade = v); _set('manga_noCrossFade', v); }),

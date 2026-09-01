@@ -30,6 +30,8 @@ class Book {
   int? customOrder;
   bool allowUpdate;
   String? fileName;
+  String? customCoverUrl;
+  String? bookComment;
 
   Book({
     required this.name,
@@ -61,6 +63,8 @@ class Book {
     this.customOrder,
     this.allowUpdate = true,
     this.fileName,
+    this.customCoverUrl,
+    this.bookComment,
   });
 
   String get uniqueKey => '${origin ?? ''}_$name';
@@ -95,6 +99,8 @@ class Book {
     'customOrder': customOrder,
     'allowUpdate': allowUpdate ? 1 : 0,
     'fileName': fileName,
+    'customCoverUrl': customCoverUrl,
+    'bookComment': bookComment,
   };
 
   factory Book.fromMap(Map<String, dynamic> map) => Book(
@@ -127,6 +133,8 @@ class Book {
     customOrder: map['customOrder'] as int?,
     allowUpdate: (map['allowUpdate'] as int? ?? 1) == 1,
     fileName: map['fileName'] as String?,
+    customCoverUrl: map['customCoverUrl'] as String?,
+    bookComment: map['bookComment'] as String?,
   );
 
   Map<String, dynamic> toJson() => toMap();

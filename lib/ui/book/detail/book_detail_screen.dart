@@ -58,6 +58,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     final authorController = TextEditingController(text: widget.book.author);
     final introController = TextEditingController(text: widget.book.intro ?? '');
     final kindController = TextEditingController(text: widget.book.kind ?? '');
+    final coverController = TextEditingController(text: widget.book.customCoverUrl ?? widget.book.coverUrl ?? '');
+    final commentController = TextEditingController(text: widget.book.bookComment ?? '');
     showDialog(context: context, builder: (context) => AlertDialog(
       title: const Text('编辑书籍信息'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -65,9 +67,13 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         const SizedBox(height: 8),
         TextField(controller: authorController, decoration: const InputDecoration(labelText: '作者')),
         const SizedBox(height: 8),
+        TextField(controller: coverController, decoration: const InputDecoration(labelText: '封面URL')),
+        const SizedBox(height: 8),
         TextField(controller: kindController, decoration: const InputDecoration(labelText: '分类')),
         const SizedBox(height: 8),
         TextField(controller: introController, maxLines: 4, decoration: const InputDecoration(labelText: '简介')),
+        const SizedBox(height: 8),
+        TextField(controller: commentController, maxLines: 2, decoration: const InputDecoration(labelText: '备注')),
       ])),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
@@ -76,6 +82,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
           widget.book.author = authorController.text;
           widget.book.kind = kindController.text;
           widget.book.intro = introController.text;
+          widget.book.customCoverUrl = coverController.text.isEmpty ? null : coverController.text;
+          widget.book.bookComment = commentController.text.isEmpty ? null : commentController.text;
           await _db.updateBook(widget.book);
           if (mounted) { setState(() {}); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已保存'))); }
         }, child: const Text('保存')),
