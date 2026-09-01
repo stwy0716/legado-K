@@ -50,9 +50,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final todayMs = today.millisecondsSinceEpoch;
 
     for (final r in _readRecords) {
-      final duration = (r['duration'] as int?) ?? 0;
+      final duration = (r.duration as int?) ?? 0;
       _totalMinutes += duration ~/ 60000;
-      final readDate = r['readDate'] as int?;
+      final readDate = r.date as int?;
       if (readDate != null && readDate >= todayMs) {
         _todayMinutes += duration ~/ 60000;
       }
@@ -61,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // 计算阅读天数
     final days = <String>{};
     for (final r in _readRecords) {
-      final readDate = r['readDate'] as int?;
+      final readDate = r.date as int?;
       if (readDate != null) {
         final d = DateTime.fromMillisecondsSinceEpoch(readDate);
         days.add('${d.year}-${d.month}-${d.day}');
