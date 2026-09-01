@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:legado_md3/data/model/rss_source.dart';
 import 'package:legado_md3/data/model/rss_article.dart';
+import 'package:legado_md3/ui/rss/rss_read_screen.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/http/rss_service.dart';
 
@@ -240,9 +241,7 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
           ),
           onTap: () async {
             if (article.id != null) await _db.markRssArticleRead(article.id!);
-            if (article.link.isNotEmpty) {
-              await launchUrl(Uri.parse(article.link), mode: LaunchMode.externalApplication);
-            }
+            if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => RssReadScreen(article: article)));
             _loadData();
           },
           onLongPress: () => _showArticleOptions(article),

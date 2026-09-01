@@ -13,6 +13,7 @@ class RssArticle {
   bool? read;
   bool? starred;
   int? readTime;
+  int? favorite;
 
   RssArticle({
     this.id,
@@ -28,6 +29,7 @@ class RssArticle {
     this.read = false,
     this.starred = false,
     this.readTime,
+    this.favorite,
   });
 
   Map<String, dynamic> toMap() => {
@@ -44,6 +46,7 @@ class RssArticle {
     'isRead': read == true ? 1 : 0,
     'starred': starred == true ? 1 : 0,
     'readTime': readTime,
+    'star': favorite,
   };
 
   factory RssArticle.fromMap(Map<String, dynamic> map) => RssArticle(
@@ -60,5 +63,6 @@ class RssArticle {
     read: (map['isRead'] as int?) == 1,
     starred: (map['starred'] as int?) == 1,
     readTime: map['readTime'] as int?,
+    favorite: (map['star'] ?? map['favorite']) as int?,
   );
 }

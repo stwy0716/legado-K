@@ -298,6 +298,16 @@ class DatabaseService {
     await batch.commit();
   }
 
+  Future<void> toggleRssFavorite(int id, int star) async {
+    final db = await database;
+    await db.update('rss_articles', {'star': star}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Map<String, dynamic>>> getStarredRssArticles() async {
+    final db = await database;
+    return db.query('rss_articles', where: 'star = 1', orderBy: 'pubDate DESC');
+  }
+
   Future<void> markRssArticleRead(int id) async {
     final db = await database;
     await db.update('rss_articles', {'read': 1}, where: 'id = ?', whereArgs: [id]);
