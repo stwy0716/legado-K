@@ -12,7 +12,7 @@ class RssSourceEditScreen extends StatefulWidget {
 }
 
 class _RssSourceEditScreenState extends State<RssSourceEditScreen> with SingleTickerProviderStateMixin {
-  final _db = AppDatabase();
+  final _db = DatabaseService();
   late TabController _tabController;
   late RssSource _s;
 
