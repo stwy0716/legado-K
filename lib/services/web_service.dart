@@ -235,7 +235,7 @@ class WebService {
   // === RSS API ===
   Future<Response> _getRssSources(Request request) async {
     final sources = await _db.getRssSources();
-    return _jsonResponse(sources.map((s) => s.toJson()).toList());
+    return _jsonResponse(sources.map((s) => {'name': s.name, 'url': s.url, 'group': s.group, 'enabled': s.enabled}).toList());
   }
 
   Future<Response> _saveRssSource(Request request) async {
