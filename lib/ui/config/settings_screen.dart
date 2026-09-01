@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:legado_md3/ui/config/theme_manage_screen.dart';
 import 'package:legado_md3/ui/config/cover_config_screen.dart';
 import 'package:legado_md3/ui/book/manga/manga_config_screen.dart';
+import 'package:legado_md3/ui/config/other_config_screen.dart';
+import 'package:legado_md3/ui/config/download_cache_config_screen.dart';
 import 'package:legado_md3/ui/config/cloud_tts_screen.dart';
 import 'package:legado_md3/ui/cache/cache_manage_screen.dart';
 import 'package:legado_md3/ui/backup/backup_screen.dart';
@@ -95,6 +97,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         children: [
           // 主题设置
+          ListTile(
+            leading: const Icon(Icons.tune),
+            title: const Text('其他设置'),
+            subtitle: const Text('语言/更新/密码/阅读偏好'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OtherConfigScreen())),
+          ),
           _buildSectionHeader('主题设置'),
           SwitchListTile(
             title: const Text('深色模式'),
@@ -297,6 +306,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // 下载缓存
           _buildSectionHeader('下载缓存'),
+          ListTile(
+            leading: const Icon(Icons.tune),
+            title: const Text('下载缓存配置'),
+            subtitle: const Text('线程/预下载/图片缓存/UA'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DownloadCacheConfigScreen())),
+          ),
           ListTile(
             leading: const Icon(Icons.download_outlined),
             title: const Text('下载管理'),
