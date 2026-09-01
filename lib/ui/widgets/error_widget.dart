@@ -1,0 +1,2 @@
+import "package:flutter/material.dart";
+class ErrorWidget extends StatelessWidget { final String message; final VoidCallback? onRetry; const ErrorWidget({super.key, this.message = "加载失败", this.onRetry}); @override Widget build(BuildContext context) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text(message), if (onRetry != null) TextButton(onPressed: onRetry, child: const Text("重试"))])); }

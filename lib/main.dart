@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'theme/app_theme.dart';
-import 'providers/book_provider.dart';
-import 'screens/main_screen.dart';
+import 'package:legado_md3/constant/app_theme.dart';
+import 'package:legado_md3/di/book_provider.dart';
+import 'package:legado_md3/ui/main/main_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
