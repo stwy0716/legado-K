@@ -274,9 +274,9 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
               onTap: () { Navigator.pop(context); _editSource(source); },
             ),
             ListTile(
-              leading: Icon(source.enabled ? Icons.toggle_off : Icons.toggle_on),
-              title: Text(source.enabled ? '禁用' : '启用'),
-              onTap: () async { Navigator.pop(context); source.enabled = !source.enabled; await _db.updateRssSource(source); _loadData(); },
+              leading: Icon(source.enabled == true ? Icons.toggle_off : Icons.toggle_on),
+              title: Text(source.enabled == true ? '禁用' : '启用'),
+              onTap: () async { Navigator.pop(context); source.enabled = !(source.enabled == true); await _db.updateRssSource(source); _loadData(); },
             ),
             ListTile(
               leading: const Icon(Icons.content_copy),

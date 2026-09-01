@@ -415,7 +415,7 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
         return;
       case 'invert':
         final all = _filteredSources.map((s) => s.bookSourceUrl).toSet();
-        setState(() { _selectedIds = all.difference(_selectedIds.toSet()).toList(); });
+        setState(() { final inverted = all.difference(_selectedIds); _selectedIds.clear(); _selectedIds.addAll(inverted); });
         return;
     }
     await _loadSources();
