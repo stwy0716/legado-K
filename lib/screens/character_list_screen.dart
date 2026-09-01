@@ -130,7 +130,7 @@ class _CharacterListScreenState extends State<CharacterListScreen> with SingleTi
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('名言:', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  ...char.quotes!.map((q) => Padding(padding: const EdgeInsets.only(bottom: 4), child: Text('"$q"', style: const TextStyle(fontStyle: TextStyle.italic)))),
+                  ...char.quotes!.map((q) => Padding(padding: const EdgeInsets.only(bottom: 4), child: Text('"$q"', style: const TextStyle(fontStyle: FontStyle.italic)))),
                 ]),
               ),
             ],

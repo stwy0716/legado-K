@@ -34,7 +34,7 @@ class CharacterDetailScreen extends StatelessWidget {
           if (character.relations != null && character.relations!.isNotEmpty) _buildSection('关系', [
             Wrap(spacing: 8, runSpacing: 8, children: character.relations!.map((r) => Chip(label: Text(r))).toList()),
           ]),
-          if (character.quotes != null && character.quotes!.isNotEmpty) _buildSection('名言', character.quotes!.map((q) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('"$q"', style: const TextStyle(fontStyle: TextStyle.italic, fontSize: 15)))).toList()),
+          if (character.quotes != null && character.quotes!.isNotEmpty) _buildSection('名言', character.quotes!.map((q) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('"$q"', style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 15)))).toList()),
           const SizedBox(height: 24),
         ],
       ),

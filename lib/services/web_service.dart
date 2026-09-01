@@ -71,11 +71,11 @@ class WebService {
     _server = null;
   }
 
-  String get address => 'http://${_getLocalIP()}:$port';
+  Future<String> get address async => 'http://${await _getLocalIP()}:$port';
 
-  String _getLocalIP() {
+  Future<String> _getLocalIP() async {
     try {
-      for (final interface in NetworkInterface.list()) {
+      for (final interface in await NetworkInterface.list()) {
         for (final addr in interface.addresses) {
           if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
             return addr.address;
@@ -97,7 +97,7 @@ class WebService {
   // === 书源API ===
   Future<Response> _getBookSources(Request request) async {
     final sources = await _db.getAllSources();
-    return _jsonResponse(sources.map((s) => s.toJson()).toList());
+    return _jsonResponse(sources.map((s) => {'name': s.name, 'url': s.url, 'group': s.group, 'enabled': s.enabled}).toList());
   }
 
   Future<Response> _getBookSource(Request request) async {
@@ -155,7 +155,7 @@ class WebService {
     final name = request.url.queryParameters['name'] ?? '';
     final author = request.url.queryParameters['author'] ?? '';
     final chapters = await _db.getChapters(name, author);
-    return _jsonResponse(chapters.map((c) => c.toJson()).toList());
+    return _jsonResponse(chapters.map((c) => {'title': c.title, 'url': c.url, 'index': c.index}).toList());
   }
 
   Future<Response> _getBookContent(Request request) async {
@@ -235,12 +235,12 @@ class WebService {
   // === RSS API ===
   Future<Response> _getRssSources(Request request) async {
     final sources = await _db.getRssSources();
-    return _jsonResponse(sources.map((s) => s.toJson()).toList());
+    return _jsonResponse(sources.map((s) => {'name': s.name, 'url': s.url, 'group': s.group, 'enabled': s.enabled}).toList());
   }
 
   Future<Response> _saveRssSource(Request request) async {
     final body = await request.readAsString();
-    final source = RssSource.fromJson(jsonDecode(body));
+    final data = jsonDecode(body); final source = RssSource(name: data['name'] ?? '', url: data['url'] ?? '', group: data['group'], enabled: data['enabled'] ?? true);
     await _db.insertRssSource(source);
     return _jsonResponse({'success': true});
   }
@@ -257,12 +257,12 @@ class WebService {
   // === 替换规则API ===
   Future<Response> _getReplaceRules(Request request) async {
     final rules = await _db.getReplaceRules();
-    return _jsonResponse(rules.map((r) => r.toJson()).toList());
+    return _jsonResponse(rules.map((r) => {'id': r.id, 'replaceSummary': r.replaceSummary, 'replaceRule': r.replaceRule, 'replacement': r.replacement, 'enable': r.enable}).toList());
   }
 
   Future<Response> _saveReplaceRule(Request request) async {
     final body = await request.readAsString();
-    final rule = ReplaceRule.fromJson(jsonDecode(body));
+    final data = jsonDecode(body); final rule = ReplaceRule(id: data['id'], replaceSummary: data['replaceSummary'] ?? '', replaceRule: data['replaceRule'] ?? '', replacement: data['replacement'] ?? '', enable: data['enable'] ?? true);
     if (rule.id != null) {
       await _db.updateReplaceRule(rule);
     } else {
