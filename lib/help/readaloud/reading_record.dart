@@ -1,4 +1,4 @@
-import 'database_service.dart';
+import 'package:legado_md3/data/local/app_database.dart';
 
 /// 阅读记录服务
 class ReadingRecordService {

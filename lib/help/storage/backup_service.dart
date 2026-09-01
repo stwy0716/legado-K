@@ -4,7 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/data/model/replace_rule.dart';
-import 'database_service.dart';
+import 'package:legado_md3/data/local/app_database.dart';
 
 /// 备份恢复服务
 class BackupService {
