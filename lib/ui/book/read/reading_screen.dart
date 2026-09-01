@@ -13,6 +13,7 @@ import 'package:legado_md3/help/source/source_engine.dart';
 import 'package:legado_md3/help/readaloud/tts_service.dart';
 import 'package:legado_md3/help/readaloud/reading_record.dart';
 import 'package:legado_md3/data/model/book_source.dart';
+import 'package:legado_md3/ui/book/read/config/reading_settings_screen.dart';
 import 'package:legado_md3/ui/book/chapter/chapter_list_screen.dart';
 import 'package:legado_md3/ui/book/read/tts_player_screen.dart';
 import 'package:legado_md3/ui/book/detail/book_detail_screen.dart';
@@ -795,120 +796,6 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   }
 
   void _showReadingSettings() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('阅读设置'),
-              trailing: const Icon(Icons.close),
-              onTap: () => Navigator.pop(context),
-            ),
-            const Divider(),
-            SwitchListTile(
-              title: const Text('音量键翻页'),
-              value: context.read<ReadProvider>().config.volumeKeyPage,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.volumeKeyPage = value),
-            ),
-            SwitchListTile(
-              title: const Text('保持屏幕常亮'),
-              value: context.read<ReadProvider>().config.keepScreenOn,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.keepScreenOn = value),
-            ),
-            SwitchListTile(
-              title: const Text('显示状态栏'),
-              value: context.read<ReadProvider>().config.statusBarVisibility,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.statusBarVisibility = value),
-            ),
-            SwitchListTile(
-              title: const Text('显示标题'),
-              value: context.read<ReadProvider>().config.titleVisibility,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.titleVisibility = value),
-            ),
-            SwitchListTile(
-              title: const Text('显示时间'),
-              value: context.read<ReadProvider>().config.timeVisibility,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.timeVisibility = value),
-            ),
-            SwitchListTile(
-              title: const Text('显示页码'),
-              value: context.read<ReadProvider>().config.pageNumberVisibility,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.pageNumberVisibility = value),
-            ),
-            SwitchListTile(
-              title: const Text('自动翻页'),
-              value: context.read<ReadProvider>().config.autoNextPage,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.autoNextPage = value),
-            ),
-            SwitchListTile(
-              title: const Text('粗体文字'),
-              value: context.read<ReadProvider>().config.boldText,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.boldText = value),
-            ),
-            ListTile(
-              title: const Text('对齐方式'),
-              trailing: DropdownButton<int>(
-                value: context.watch<ReadProvider>().config.textAlign,
-                items: const [
-                  DropdownMenuItem(value: 0, child: Text('左对齐')),
-                  DropdownMenuItem(value: 1, child: Text('居中')),
-                  DropdownMenuItem(value: 2, child: Text('两端对齐')),
-                ],
-                onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.textAlign = v ?? 2),
-              ),
-            ),
-            ListTile(
-              title: const Text('首行缩进'),
-              trailing: DropdownButton<int>(
-                value: context.watch<ReadProvider>().config.textIndent,
-                items: List.generate(5, (i) => DropdownMenuItem(value: i, child: Text('${i * 2}字符'))),
-                onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.textIndent = v ?? 2),
-              ),
-            ),
-            ListTile(
-              title: const Text('段间距'),
-              trailing: DropdownButton<int>(
-                value: context.watch<ReadProvider>().config.paragraphSpacing,
-                items: List.generate(5, (i) => DropdownMenuItem(value: i, child: Text('$i行'))),
-                onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.paragraphSpacing = v ?? 1),
-              ),
-            ),
-            SwitchListTile(
-              title: const Text('护眼模式'),
-              subtitle: const Text('暖色调屏幕'),
-              value: context.watch<ReadProvider>().config.eyeProtection,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.eyeProtection = value),
-            ),
-            SwitchListTile(
-              title: const Text('显示电量'),
-              value: context.watch<ReadProvider>().config.batteryVisibility,
-              onChanged: (value) => context.read<ReadProvider>().updateConfig((c) => c.batteryVisibility = value),
-            ),
-            ListTile(
-              title: const Text('点击区域'),
-              subtitle: const Text('点击左右两侧翻页，中间显示菜单'),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _startTTS() {
-    _ttsService.setChapters(_chapters, startIndex: _currentChapterIndex);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TtsPlayerScreen(
-          ttsService: _ttsService,
-          chapters: _chapters,
-          currentIndex: _currentChapterIndex,
-          bookName: widget.book.name,
-        ),
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ReadingSettingsScreen()));
   }
 }

@@ -54,6 +54,47 @@ jobs:
           TAG="v3.26.7-$(date +%Y%m%d-%H%M%S)"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
+      - name: Delete old prereleases
+        run: |
+          echo "Deleting old prereleases..."
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" > /tmp/releases.json
+          python3 << 'PYEOF'
+import json, urllib.request, os
+token = os.environ.get('GITHUB_TOKEN', '')
+repo = os.environ.get('GITHUB_REPOSITORY', '')
+with open('/tmp/releases.json') as f:
+    releases = json.load(f)
+for r in releases:
+    if r.get('prerelease'):
+        rid = r['id']
+        tag = r['tag_name']
+        print(f'Deleting prerelease: {tag} (id: {rid})')
+        # Delete release
+        req = urllib.request.Request(
+            f'https://api.github.com/repos/{repo}/releases/{rid}',
+            method='DELETE',
+            headers={'Authorization': f'token {token}', 'User-Agent': 'GitHub Actions'}
+        )
+        try:
+            urllib.request.urlopen(req)
+            print(f'  Deleted release {rid}')
+        except Exception as e:
+            print(f'  Error: {e}')
+        # Delete tag
+        req2 = urllib.request.Request(
+            f'https://api.github.com/repos/{repo}/git/refs/tags/{tag}',
+            method='DELETE',
+            headers={'Authorization': f'token {token}', 'User-Agent': 'GitHub Actions'}
+        )
+        try:
+            urllib.request.urlopen(req2)
+            print(f'  Deleted tag {tag}')
+        except Exception as e:
+            print(f'  Error: {e}')
+PYEOF
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create Prerelease
         uses: softprops/action-gh-release@v1
         with:
