@@ -4,6 +4,9 @@ class ReplaceRule {
   String replaceRule;
   String replacement;
   bool? enable;
+  bool isTitle;
+  bool isContent;
+  bool isRegex;
   String? scope; // 书源URL或"all"
   int? order;
 
@@ -23,6 +26,9 @@ class ReplaceRule {
     'replaceRule': replaceRule,
     'replacement': replacement,
     'enable': enable == true ? 1 : 0,
+    'isTitle': isTitle ? 1 : 0,
+    'isContent': isContent ? 1 : 0,
+    'isRegex': isRegex ? 1 : 0,
     'scope': scope,
     'order_num': order,
   };
@@ -33,6 +39,9 @@ class ReplaceRule {
     replaceRule: map['replaceRule'] as String,
     replacement: map['replacement'] as String,
     enable: (map['enable'] as int?) == 1,
+    isTitle: (map['isTitle'] as int?) == 1,
+    isContent: (map['isContent'] as int?) != 0,
+    isRegex: (map['isRegex'] as int?) != 0,
     scope: map['scope'] as String?,
     order: map['order_num'] as int? ?? map['order'] as int?,
   );

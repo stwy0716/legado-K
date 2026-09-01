@@ -45,9 +45,12 @@ class _ReplaceRuleScreenState extends State<ReplaceRuleScreen> {
     final replacementController = TextEditingController(text: rule?.replacement ?? '');
     final scopeController = TextEditingController(text: rule?.scope ?? '');
 
+    bool isTitle = rule?.isTitle ?? false;
+    bool isContent = rule?.isContent ?? true;
+    bool isRegex = rule?.isRegex ?? true;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
         title: Text(rule == null ? '新建替换规则' : '编辑替换规则'),
         content: SingleChildScrollView(
           child: Column(
@@ -60,14 +63,30 @@ class _ReplaceRuleScreenState extends State<ReplaceRuleScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: regexController,
-                decoration: const InputDecoration(labelText: '替换规则(正则)'),
+                decoration: const InputDecoration(labelText: '匹配规则(正则或关键词)'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: replacementController,
-                decoration: const InputDecoration(labelText: '替换为'),
+                decoration: const InputDecoration(labelText: '替换为(留空表示删除)'),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero, dense: true,
+                title: const Text('作用于标题'), value: isTitle,
+                onChanged: (v) => setDialogState(() => isTitle = v ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero, dense: true,
+                title: const Text('作用于正文'), value: isContent,
+                onChanged: (v) => setDialogState(() => isContent = v ?? true),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero, dense: true,
+                title: const Text('使用正则表达式'), value: isRegex,
+                onChanged: (v) => setDialogState(() => isRegex = v ?? true),
+              ),
+              const SizedBox(height: 8),
               TextField(
                 controller: scopeController,
                 decoration: const InputDecoration(labelText: '作用范围(书源URL，留空为全部)'),
@@ -86,6 +105,9 @@ class _ReplaceRuleScreenState extends State<ReplaceRuleScreen> {
                 replacement: replacementController.text,
                 scope: scopeController.text.isEmpty ? null : scopeController.text,
                 enable: rule?.enable ?? true,
+                isTitle: isTitle,
+                isContent: isContent,
+                isRegex: isRegex,
               );
               if (rule == null) {
                 await _db.insertReplaceRule(newRule);
@@ -98,7 +120,7 @@ class _ReplaceRuleScreenState extends State<ReplaceRuleScreen> {
             child: const Text('保存'),
           ),
         ],
-      ),
+      )),
     );
   }
 
