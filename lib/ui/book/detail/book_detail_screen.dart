@@ -168,8 +168,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.push_pin_outlined),
-              title: Text(widget.book.customOrder < 0 ? '取消置顶' : '置顶'),
-              onTap: () async { Navigator.pop(context); widget.book.customOrder = widget.book.customOrder < 0 ? 0 : -1; await _db.updateBook(widget.book); if (mounted) setState(() {}); },
+              title: Text((widget.book.customOrder ?? 0) < 0 ? '取消置顶' : '置顶'),
+              onTap: () async { Navigator.pop(context); widget.book.customOrder = (widget.book.customOrder ?? 0) < 0 ? 0 : -1; await _db.updateBook(widget.book); if (mounted) setState(() {}); },
             ),
             ListTile(
               leading: Icon(widget.book.allowUpdate ? Icons.sync_disabled : Icons.sync),
@@ -216,7 +216,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               },
             ),
           ],
-        ),
+        )),
       ),
     );
   }
