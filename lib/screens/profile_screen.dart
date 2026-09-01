@@ -33,7 +33,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _webService.start(port: 1122);
       setState(() => _webServiceRunning = true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Web服务已启动: ${_webService.address}')));
+        final addr = await _webService.address;
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Web服务已启动: $addr')));
       }
     } else {
       await _webService.stop();
@@ -75,7 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SwitchListTile(
             secondary: const Icon(Icons.web_outlined),
             title: const Text('Web服务'),
-            subtitle: Text(_webServiceRunning ? '地址: ${_webService.address}' : '通过浏览器管理书架'),
+            subtitle: Text(_webServiceRunning ? '端口: ${_webService.port} (浏览器访问设备IP)' : '通过浏览器管理书架'),
             value: _webServiceRunning,
             onChanged: _toggleWebService,
           ),
