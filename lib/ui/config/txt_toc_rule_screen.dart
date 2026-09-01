@@ -33,6 +33,8 @@ class _TxtTocRuleScreenState extends State<TxtTocRuleScreen> {
   void _showEditDialog({TxtTocRule? rule}) {
     final nameController = TextEditingController(text: rule?.name ?? '');
     final ruleController = TextEditingController(text: rule?.chapterRule ?? '');
+    final volumeController = TextEditingController(text: rule?.volumeRule ?? '');
+    final exampleController = TextEditingController(text: rule?.example ?? '');
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -40,17 +42,21 @@ class _TxtTocRuleScreenState extends State<TxtTocRuleScreen> {
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: nameController, decoration: const InputDecoration(labelText: '规则名称', border: OutlineInputBorder())),
           const SizedBox(height: 12),
-          TextField(controller: ruleController, maxLines: 3, decoration: const InputDecoration(labelText: '正则表达式', border: OutlineInputBorder(), hintText: '例如: ^第\\d+章.*')),
+          TextField(controller: ruleController, maxLines: 3, decoration: const InputDecoration(labelText: '章节规则(正则)', border: OutlineInputBorder(), hintText: '例如: ^第\\d+章.*')),
+          const SizedBox(height: 12),
+          TextField(controller: volumeController, maxLines: 2, decoration: const InputDecoration(labelText: '卷规则(正则)', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: exampleController, maxLines: 2, decoration: const InputDecoration(labelText: '示例', border: OutlineInputBorder())),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
           FilledButton(onPressed: () {
             setState(() {
               if (rule == null) {
-                _rules.add(TxtTocRule(id: DateTime.now().millisecondsSinceEpoch, name: nameController.text, chapterRule: ruleController.text, enable: true));
+                _rules.add(TxtTocRule(id: DateTime.now().millisecondsSinceEpoch, name: nameController.text, chapterRule: ruleController.text, volumeRule: volumeController.text, example: exampleController.text, enable: true));
               } else {
                 final index = _rules.indexWhere((r) => r.id == rule.id);
-                if (index >= 0) _rules[index] = TxtTocRule(id: rule.id, name: nameController.text, chapterRule: ruleController.text, enable: rule.enable);
+                if (index >= 0) _rules[index] = TxtTocRule(id: rule.id, name: nameController.text, chapterRule: ruleController.text, volumeRule: volumeController.text, example: exampleController.text, enable: rule.enable);
               }
             });
             Navigator.pop(context);
@@ -65,6 +71,11 @@ class _TxtTocRuleScreenState extends State<TxtTocRuleScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('TXT目录规则'), actions: [
         IconButton(icon: const Icon(Icons.add), onPressed: () => _showEditDialog()),
+        PopupMenuButton<String>(onSelected: (v) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v == 'import' ? '网络导入' : '导出'))), itemBuilder: (_) => const [
+          PopupMenuItem(value: 'import', child: Text('网络导入')),
+          PopupMenuItem(value: 'local', child: Text('本地导入')),
+          PopupMenuItem(value: 'export', child: Text('导出')),
+        ]),
       ]),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
