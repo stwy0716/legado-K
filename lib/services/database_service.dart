@@ -20,7 +20,7 @@ import '../models/highlight_tag_rule.dart';
 import '../models/http_tts.dart';
 import '../models/read_config.dart';
 import '../models/read_record.dart';
-import '../models/replace_rule.dart';
+import '../models/replace_rule.dart' hide ReadRecord;
 import '../models/rss_source.dart';
 import '../models/rss_article.dart';
 import '../models/rss_read_record.dart';
@@ -46,7 +46,56 @@ class DatabaseService {
     if (_db != null) return _db!;
     _db = await _initDatabase();
     return _db!;
+  
+  // ==================== 缺失方法补齐 ====================
+  Future<void> saveChapters(String bookName, String bookAuthor, List<BookChapter> chapters) async {
+    final db = await database;
+    await db.delete('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [bookName, bookAuthor]);
+    final batch = db.batch();
+    for (final c in chapters) {
+      batch.insert('book_chapters', c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit(noResult: true);
   }
+
+  Future<void> saveRssArticles(List<RssArticle> articles) async {
+    final db = await database;
+    final batch = db.batch();
+    for (final a in articles) {
+      batch.insert('rss_articles', a.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> updateRssSource(RssSource source) async {
+    final db = await database;
+    if (source.id != null) {
+      await db.update('rss_sources', source.toMap(), where: 'id = ?', whereArgs: [source.id]);
+    }
+  }
+
+  Future<void> markRssArticleRead(int id) async {
+    final db = await database;
+    await db.update('rss_articles', {'read': 1}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> clearChapterContent() async {
+    final db = await database;
+    await db.delete('caches');
+  }
+
+  Future<void> addReadRecord(String bookName, String author, int duration, int date) async {
+    final db = await database;
+    await db.insert('read_records', {
+      'bookName': bookName, 'author': author, 'duration': duration, 'date': date,
+    });
+  }
+
+  Future<void> deleteRssStar(int id) async {
+    final db = await database;
+    await db.delete('rss_stars', where: 'id = ?', whereArgs: [id]);
+  }
+}
 
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
@@ -361,7 +410,7 @@ class DatabaseService {
   }
 
   // ==================== 书签DAO ====================
-  Future<List<Bookmark>> getBookmarks({String? bookName, String? author}) async {
+  Future<List<Bookmark>> getBookmarks([String? bookName, String? author]) async {
     final db = await database;
     final maps = bookName != null
         ? await db.query('bookmarks', where: 'bookName = ? AND author = ?', whereArgs: [bookName, author], orderBy: 'createTime DESC')
@@ -418,9 +467,11 @@ class DatabaseService {
     await db.delete('rss_sources', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<RssArticle>> getRssArticles(String sourceUrl) async {
+  Future<List<RssArticle>> getRssArticles([String? sourceUrl]) async {
     final db = await database;
-    final maps = await db.query('rss_articles', where: 'sourceUrl = ?', whereArgs: [sourceUrl], orderBy: 'pubDate DESC');
+    final maps = sourceUrl != null
+        ? await db.query('rss_articles', where: 'sourceUrl = ?', whereArgs: [sourceUrl], orderBy: 'pubDate DESC')
+        : await db.query('rss_articles', orderBy: 'pubDate DESC');
     return maps.map((m) => RssArticle.fromMap(m)).toList();
   }
 
@@ -704,10 +755,10 @@ class DatabaseService {
   }
 
   // ==================== 搜索书籍DAO ====================
-  Future<List<SearchBook>> getSearchBooks() async {
+  Future<List<Book>> getSearchBooks() async {
     final db = await database;
     final maps = await db.query('search_books', orderBy: 'addTime DESC');
-    return maps.map((m) => SearchBook.fromMap(m)).toList();
+    return maps.map((m) => Book.fromMap(m)).toList();
   }
 
   Future<void> insertSearchBook(SearchBook book) async {
