@@ -108,15 +108,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showAbout(BuildContext context) {
     showDialog(context: context, builder: (context) => AlertDialog(
       title: const Text('关于'),
-      content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Legado MD3', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        SizedBox(height: 8),
-        Text('版本: 3.26.7'),
-        SizedBox(height: 8),
-        Text('基于Legado MD3风格的跨平台阅读应用'),
-        Text('支持Android和iOS'),
-      ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('确定'))],
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Legado MD3', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        const Text('版本: 3.26.7'),
+        const SizedBox(height: 4),
+        const Text('基于Legado MD3风格的跨平台阅读应用，支持Android和iOS'),
+        const Divider(height: 24),
+        ListTile(
+          dense: true, leading: const Icon(Icons.update, size: 20), title: const Text('检查更新'),
+          onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('当前已是最新版本'))); },
+        ),
+        ListTile(
+          dense: true, leading: const Icon(Icons.code, size: 20), title: const Text('GitHub项目'),
+          onTap: () { Navigator.pop(context); },
+        ),
+        ListTile(
+          dense: true, leading: const Icon(Icons.people_outline, size: 20), title: const Text('贡献者'),
+          onTap: () { Navigator.pop(context); showDialog(context: context, builder: (c) => const AlertDialog(title: Text('贡献者'), content: Text('Legado开源社区\n\n感谢所有贡献者的支持'))); },
+        ),
+        ListTile(
+          dense: true, leading: const Icon(Icons.privacy_tip_outlined, size: 20), title: const Text('隐私政策'),
+          onTap: () { Navigator.pop(context); showDialog(context: context, builder: (c) => const AlertDialog(title: Text('隐私政策'), content: Text('本应用不会收集任何个人信息，所有数据均存储在本地设备上。'))); },
+        ),
+        ListTile(
+          dense: true, leading: const Icon(Icons.gavel, size: 20), title: const Text('开源协议'),
+          onTap: () { Navigator.pop(context); showDialog(context: context, builder: (c) => const AlertDialog(title: Text('开源协议'), content: Text('GNU General Public License v3.0'))); },
+        ),
+        ListTile(
+          dense: true, leading: const Icon(Icons.warning_amber_outlined, size: 20), title: const Text('免责声明'),
+          onTap: () { Navigator.pop(context); showDialog(context: context, builder: (c) => const AlertDialog(title: Text('免责声明'), content: Text('本应用仅供学习交流使用，不提供任何书籍内容，所有书源均由用户自行添加。'))); },
+        ),
+        ListTile(
+          dense: true, leading: const Icon(Icons.bug_report, size: 20), title: const Text('崩溃日志'),
+          onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂无崩溃日志'))); },
+        ),
+      ])),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
     ));
   }
 
