@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:legado_md3/data/model/rss_source.dart';
 import 'package:legado_md3/data/model/rss_article.dart';
 import 'package:legado_md3/ui/rss/rss_read_screen.dart';
+import 'package:legado_md3/ui/rss/rss_source_edit_screen.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/http/rss_service.dart';
 
@@ -37,46 +38,8 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
   }
 
   Future<void> _addSource() async {
-    final nameController = TextEditingController();
-    final urlController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('添加订阅源'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: '名称'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: urlController,
-              decoration: const InputDecoration(labelText: 'RSS/Atom URL'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-          FilledButton(
-            onPressed: () async {
-              if (nameController.text.isEmpty || urlController.text.isEmpty) return;
-              final source = RssSource(
-                name: nameController.text,
-                url: urlController.text,
-                enabled: true,
-              );
-              await _db.insertRssSource(source);
-              Navigator.pop(context);
-              _loadData();
-            },
-            child: const Text('添加'),
-          ),
-        ],
-      ),
-    );
+    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const RssSourceEditScreen()));
+    if (result == true) _loadData();
   }
 
   Future<void> _refreshSource(RssSource source) async {
@@ -343,25 +306,8 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
     ])));
   }
 
-  void _editSource(RssSource source) {
-    final nameController = TextEditingController(text: source.name);
-    final urlController = TextEditingController(text: source.url);
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: const Text('编辑订阅源'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: nameController, decoration: const InputDecoration(labelText: '名称')),
-        const SizedBox(height: 12),
-        TextField(controller: urlController, decoration: const InputDecoration(labelText: 'URL')),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-        FilledButton(onPressed: () async {
-          source.name = nameController.text;
-          source.url = urlController.text;
-          await _db.updateRssSource(source);
-          if (mounted) { Navigator.pop(context); _loadData(); }
-        }, child: const Text('保存')),
-      ],
-    ));
+  void _editSource(RssSource source) async {
+    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => RssSourceEditScreen(source: source)));
+    if (result == true) _loadData();
   }
 }
