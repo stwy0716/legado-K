@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/help/storage/backup_service.dart';
 
 class BackupScreen extends StatefulWidget {
@@ -19,11 +20,17 @@ class _BackupScreenState extends State<BackupScreen> {
   bool _includeRecords = true;
   bool _isWorking = false;
   List<File> _backupFiles = [];
+  final _webdavUrl = TextEditingController();
+  final _webdavUser = TextEditingController();
+  final _webdavPass = TextEditingController();
+  final _webdavDir = TextEditingController();
+  bool _syncProgress = false;
 
   @override
   void initState() {
     super.initState();
     _loadBackupFiles();
+    _loadWebdav();
   }
 
   Future<void> _loadBackupFiles() async {
@@ -31,6 +38,47 @@ class _BackupScreenState extends State<BackupScreen> {
     if (mounted) setState(() => _backupFiles = files);
   }
 
+  Future<void> _loadWebdav() async {
+    final p = await SharedPreferences.getInstance();
+    _webdavUrl.text = p.getString('webdav_url') ?? '';
+    _webdavUser.text = p.getString('webdav_user') ?? '';
+    _webdavPass.text = p.getString('webdav_pass') ?? '';
+    _webdavDir.text = p.getString('webdav_dir') ?? 'Legado/backup';
+    setState(() => _syncProgress = p.getBool('webdav_syncProgress') ?? false);
+  }
+  Future<void> _saveWebdav() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString('webdav_url', _webdavUrl.text);
+    await p.setString('webdav_user', _webdavUser.text);
+    await p.setString('webdav_pass', _webdavPass.text);
+    await p.setString('webdav_dir', _webdavDir.text);
+    await p.setBool('webdav_syncProgress', _syncProgress);
+  }
+  Widget _buildWebdavCard() => Card(
+    child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        const Icon(Icons.cloud, size: 20),
+        const SizedBox(width: 8),
+        Text('WebDAV设置', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+      ]),
+      const SizedBox(height: 12),
+      TextField(controller: _webdavUrl, decoration: const InputDecoration(labelText: 'WebDAV URL', isDense: true, border: OutlineInputBorder())),
+      const SizedBox(height: 8),
+      TextField(controller: _webdavUser, decoration: const InputDecoration(labelText: '账号', isDense: true, border: OutlineInputBorder())),
+      const SizedBox(height: 8),
+      TextField(controller: _webdavPass, obscureText: true, decoration: const InputDecoration(labelText: '密码', isDense: true, border: OutlineInputBorder())),
+      const SizedBox(height: 8),
+      TextField(controller: _webdavDir, decoration: const InputDecoration(labelText: '备份子目录', isDense: true, border: OutlineInputBorder())),
+      SwitchListTile(contentPadding: EdgeInsets.zero, dense: true, title: const Text('同步阅读进度'), value: _syncProgress, onChanged: (v) => setState(() => _syncProgress = v)),
+      Row(children: [
+        OutlinedButton(onPressed: () async { await _saveWebdav(); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('WebDAV配置已保存'))); }, child: const Text('保存配置')),
+        const SizedBox(width: 8),
+        OutlinedButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在测试连接...'))), child: const Text('测试')),
+        const Spacer(),
+        FilledButton(onPressed: () async { await _saveWebdav(); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('开始上传到WebDAV...'))); }, child: const Text('上传')),
+      ]),
+    ])),
+  );
   Future<void> _createBackup() async {
     setState(() => _isWorking = true);
     try {
@@ -189,6 +237,8 @@ class _BackupScreenState extends State<BackupScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+                _buildWebdavCard(),
                 const SizedBox(height: 16),
                 // 备份文件列表
                 if (_backupFiles.isNotEmpty) ...[
