@@ -81,19 +81,17 @@ class _SearchScreenState extends State<SearchScreen> {
         ? sources
         : sources.where((s) => _selectedSources.contains(s.bookSourceUrl)).toList();
 
-    for (final source in selectedSources) {
+    // 并发搜索所有启用书源，结果到达即刷新
+    final futures = selectedSources.map((source) async {
       try {
         final results = await _engine.search(source, keyword);
-        if (mounted) {
-          setState(() {
-            _results.addAll(results);
-            _searchedSources++;
-          });
+        if (mounted && results.isNotEmpty) {
+          setState(() => _results.addAll(results));
         }
-      } catch (_) {
-        if (mounted) setState(() => _searchedSources++);
-      }
-    }
+      } catch (_) {}
+      if (mounted) setState(() => _searchedSources++);
+    });
+    await Future.wait(futures);
 
     if (mounted) setState(() => _isSearching = false);
   }
