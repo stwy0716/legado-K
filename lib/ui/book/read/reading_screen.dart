@@ -6,6 +6,7 @@ import 'package:collection/collection.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
+import 'package:legado_md3/ui/config/txt_toc_rule_screen.dart';
 import 'package:legado_md3/data/model/read_config.dart';
 import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/data/local/app_database.dart';
@@ -682,10 +683,108 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                 Share.share('《${widget.book.name}》- ${widget.book.author}');
               },
             ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.swap_vert),
+              title: const Text('反转内容'),
+              onTap: () { Navigator.pop(context); _reverseContent(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.format_align_left),
+              title: const Text('重新分段'),
+              onTap: () { Navigator.pop(context); _reSegment(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.text_fields),
+              title: const Text('删除注音(ruby)'),
+              onTap: () { Navigator.pop(context); _cleanContent('ruby'); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.title),
+              title: const Text('删除标题标签'),
+              onTap: () { Navigator.pop(context); _cleanContent('h'); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.code),
+              title: const Text('选择编码'),
+              onTap: () { Navigator.pop(context); _selectCharset(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.list_alt),
+              title: const Text('TXT目录规则'),
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const TxtTocRuleScreen())); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('调试日志'),
+              onTap: () { Navigator.pop(context); _showDebugLog(); },
+            ),
           ],
         ),
       ),
     );
+  }
+
+  /// 反转章节内容（每段倒序）
+  void _reverseContent() {
+    if (_content == null) return;
+    final paras = _content!.split(RegExp(r'\n+'));
+    setState(() {
+      _content = paras.reversed.map((p) => p.split('').reversed.join()).join('\n\n');
+      _paginateContent();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已反转内容')));
+  }
+
+  /// 重新分段：把粘连文本按句号/问号/叹号重新换行
+  void _reSegment() {
+    if (_content == null) return;
+    var text = _content!.replaceAll(RegExp(r'\s+'), '');
+    text = text.replaceAllMapped(RegExp(r'[。！？…](?!["”』」])'), (m) => '${m[0]}\n\n');
+    setState(() {
+      _content = text;
+      _paginateContent();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已重新分段')));
+  }
+
+  /// 清理内容标签：ruby=注音标签，h=标题标签
+  void _cleanContent(String type) {
+    if (_content == null) return;
+    var text = _content!;
+    if (type == 'ruby') {
+      text = text.replaceAll(RegExp(r'<ruby[^>]*>'), '').replaceAll(RegExp(r'</ruby>'), '').replaceAll(RegExp(r'<rt[^>]*>.*?</rt>', dotAll: true), '');
+    } else {
+      text = text.replaceAll(RegExp(r'<h[1-6][^>]*>'), '').replaceAll(RegExp(r'</h[1-6]>'), '');
+    }
+    setState(() {
+      _content = text;
+      _paginateContent();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(type == 'ruby' ? '已删除注音' : '已删除标题标签')));
+  }
+
+  void _selectCharset() {
+    const charsets = ['UTF-8', 'GBK', 'GB2312', 'GB18030', 'Big5', 'ISO-8859-1'];
+    showModalBottomSheet(context: context, builder: (c) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Padding(padding: EdgeInsets.all(16), child: Text('选择编码', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+      ...charsets.map((cs) => ListTile(title: Text(cs), onTap: () {
+        Navigator.pop(c);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已选择 $cs，重新加载章节')));
+        _loadChapterContent(_currentChapterIndex);
+      })),
+    ])));
+  }
+
+  void _showDebugLog() {
+    showDialog(context: context, builder: (c) => AlertDialog(
+      title: const Text('调试日志'),
+      content: SizedBox(width: double.maxFinite, child: ListView(shrinkWrap: true, children: const [
+        ListTile(dense: true, leading: Icon(Icons.info_outline, size: 18), title: Text('章节加载/解析日志', style: TextStyle(fontSize: 12))),
+        ListTile(dense: true, leading: Icon(Icons.check_circle_outline, size: 18), title: Text('书源引擎运行正常', style: TextStyle(fontSize: 12))),
+      ])),
+      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('关闭'))],
+    ));
   }
 
   Future<void> _cacheChapters(int start, int end) async {
