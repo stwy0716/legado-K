@@ -4,6 +4,10 @@ import 'package:legado_md3/ui/config/cover_config_screen.dart';
 import 'package:legado_md3/ui/book/manga/manga_config_screen.dart';
 import 'package:legado_md3/ui/config/other_config_screen.dart';
 import 'package:legado_md3/ui/config/download_cache_config_screen.dart';
+import 'package:legado_md3/ui/config/cover_album_screen.dart';
+import 'package:legado_md3/ui/config/translate_config_screen.dart';
+import 'package:legado_md3/ui/cache/download_manage_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/ui/config/cloud_tts_screen.dart';
 import 'package:legado_md3/ui/cache/cache_manage_screen.dart';
 import 'package:legado_md3/ui/backup/backup_screen.dart';
@@ -274,7 +278,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('封面相册'),
             subtitle: const Text('管理书籍封面'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('封面相册功能开发中'))),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CoverAlbumScreen())),
           ),
 
           const Divider(),
@@ -299,7 +303,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('朗读语速'),
             subtitle: const Text('调整TTS朗读速度'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('语速设置功能开发中'))),
+            onTap: () async {
+              double rate = (await SharedPreferences.getInstance()).getDouble('tts_rate') ?? 1.0;
+              if (!mounted) return;
+              showModalBottomSheet(context: context, builder: (sheetCtx) => StatefulBuilder(builder: (ctx, setSt) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Padding(padding: EdgeInsets.all(16), child: Text('朗读语速', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: Text('${rate.toStringAsFixed(1)} 倍', style: const TextStyle(fontSize: 14))),
+                Slider(value: rate, min: 0.3, max: 3.0, divisions: 27, label: '${rate.toStringAsFixed(1)}',
+                  onChanged: (v) => setSt(() => rate = v),
+                  onChangeEnd: (v) async => (await SharedPreferences.getInstance()).setDouble('tts_rate', v)),
+                const SizedBox(height: 12),
+              ]))));
+            },
           ),
 
           const Divider(),
@@ -318,7 +333,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('下载管理'),
             subtitle: const Text('管理下载任务'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('下载管理功能开发中'))),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DownloadManageScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.storage_outlined),
@@ -342,7 +357,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('翻译引擎'),
             subtitle: const Text('选择翻译服务'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('翻译引擎功能开发中'))),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TranslateConfigScreen())),
           ),
 
           const Divider(),
