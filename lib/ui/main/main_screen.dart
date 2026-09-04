@@ -21,11 +21,10 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 1; // 默认书架
-  final PageController _pageController = PageController(initialPage: 1);
+  int _currentIndex = 0; // 默认书架
+  final PageController _pageController = PageController(initialPage: 0);
 
   final List<Widget> _screens = const [
-    HomeScreen(),
     BookshelfScreen(),
     DiscoverScreen(),
     SubscribeScreen(),
@@ -98,11 +97,6 @@ class _MainScreenState extends State<MainScreen> {
         selectedIndex: _currentIndex,
         onDestinationSelected: _onItemTapped,
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: '首页',
-          ),
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book),
