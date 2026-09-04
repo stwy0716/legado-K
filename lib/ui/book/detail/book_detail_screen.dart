@@ -13,6 +13,8 @@ import 'package:legado_md3/ui/book/knowledge/character_list_screen.dart';
 import 'package:legado_md3/ui/book/detail/change_source_screen.dart';
 import 'package:legado_md3/ui/book/detail/change_cover_screen.dart';
 import 'package:legado_md3/ui/bookmark/book_marking_screen.dart';
+import 'package:legado_md3/ui/stats/read_record_screen.dart';
+import 'package:legado_md3/ui/backup/backup_screen.dart';
 
 class BookDetailScreen extends StatefulWidget {
   final Book book;
@@ -161,7 +163,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             ListTile(
               leading: const Icon(Icons.bar_chart),
               title: const Text('阅读记录'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('阅读记录'))); },
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const ReadRecordScreen())); },
             ),
             const Divider(),
             ListTile(
@@ -187,12 +189,19 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             ListTile(
               leading: const Icon(Icons.cloud_sync),
               title: const Text('WebDAV同步'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('WebDAV同步'))); },
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupScreen())); },
             ),
             ListTile(
               leading: const Icon(Icons.cleaning_services),
               title: const Text('清除缓存'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除'))); },
+              onTap: () async {
+                Navigator.pop(context);
+                final chapters = await DatabaseService().getChapters(widget.book.name, widget.book.author);
+                for (var i = 0; i < chapters.length; i++) {
+                  await DatabaseService().updateChapterContent(widget.book.name, widget.book.author, i, '');
+                }
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除')));
+              },
             ),
             ListTile(
               leading: const Icon(Icons.share),
