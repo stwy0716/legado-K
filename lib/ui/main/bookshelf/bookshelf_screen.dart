@@ -14,6 +14,7 @@ import 'package:legado_md3/ui/book/detail/change_cover_screen.dart';
 import 'package:legado_md3/ui/bookmark/book_marking_screen.dart';
 import 'package:legado_md3/ui/main/bookshelf/group_manage_screen.dart';
 import 'package:legado_md3/ui/main/bookshelf/bookshelf_config_screen.dart';
+import 'package:legado_md3/ui/main/home/home_screen.dart';
 import 'package:legado_md3/ui/book/source/source_manage_screen.dart';
 import 'package:legado_md3/ui/stats/read_record_screen.dart';
 import 'package:legado_md3/ui/config/settings_screen.dart';
@@ -136,6 +137,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
 
   void _showMoreMenu() {
     showModalBottomSheet(context: context, builder: (context) => SafeArea(child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(leading: const Icon(Icons.dashboard_outlined), title: const Text('首页模块视图'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeScreen())); }),
       ListTile(leading: const Icon(Icons.search), title: const Text('搜索书籍'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())); }),
       ListTile(leading: const Icon(Icons.refresh), title: const Text('一键更新'), onTap: () { Navigator.pop(context); _updateAllBooks(); }),
       const Divider(),
