@@ -207,13 +207,17 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
 
   Future<void> _importFromUrl(String url) async {
     try {
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 30)));
-      final response = await dio.get(url);
-      final data = response.data is String ? jsonDecode(response.data) : response.data;
-      int count = await _importSourcesFromData(data);
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        responseType: ResponseType.plain,
+      ));
+      final response = await dio.get<String>(url);
+      final body = response.data ?? '';
+      final count = await _importSourcesFromString(body);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('成功导入 $count 个书源')),
+          SnackBar(content: Text(count > 0 ? '成功导入 $count 个书源' : '未识别到有效书源')),
         );
       }
       _loadSources();
@@ -226,6 +230,29 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
     }
   }
 
+  /// 从字符串解析并导入书源，兼容 JSON 数组/单对象/包装对象/JSONL
+  Future<int> _importSourcesFromString(String raw) async {
+    var text = raw.trim();
+    if (text.isEmpty) return 0;
+    // 去除 BOM 与常见包裹
+    if (text.startsWith('﻿')) text = text.substring(1);
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(text);
+    } catch (_) {
+      // 可能是 JSONL：逐行一个对象
+      final lines = text.split(RegExp(r'[
+]+')).where((l) => l.trim().startsWith('{')).toList();
+      if (lines.isEmpty) rethrow;
+      final arr = [];
+      for (final l in lines) {
+        try { arr.add(jsonDecode(l)); } catch (_) {}
+      }
+      decoded = arr;
+    }
+    return _importSourcesFromData(decoded);
+  }
+
   Future<void> _importFromFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -234,8 +261,7 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
       );
       if (result == null || result.files.isEmpty || result.files.first.path == null) return;
       final content = await File(result.files.first.path!).readAsString();
-      final data = jsonDecode(content);
-      int count = await _importSourcesFromData(data);
+      int count = await _importSourcesFromString(content);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('成功导入 $count 个书源')),
@@ -260,8 +286,7 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
         );
         return;
       }
-      final data = jsonDecode(clipboardData.text!);
-      int count = await _importSourcesFromData(data);
+      int count = await _importSourcesFromString(clipboardData.text!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('成功导入 $count 个书源')),
@@ -310,23 +335,25 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
   }
 
   Future<int> _importSourcesFromData(dynamic data) async {
-    int count = 0;
-    if (data is List) {
-      for (final item in data) {
-        if (item is Map) {
-          try {
-            final source = BookSource.fromJson(Map<String, dynamic>.from(item));
-            await _db.insertSource(source);
-            count++;
-          } catch (_) {}
-        }
+    // 解包常见订阅格式：{data:[...]} / {bookSources:[...]} / {result:[...]}
+    dynamic unwrapped = data;
+    if (unwrapped is Map && !unwrapped.containsKey('bookSourceUrl')) {
+      for (final key in ['data', 'bookSources', 'sources', 'result', 'list', 'records']) {
+        if (unwrapped[key] is List) { unwrapped = unwrapped[key]; break; }
       }
-    } else if (data is Map) {
-      try {
-        final source = BookSource.fromJson(Map<String, dynamic>.from(data));
-        await _db.insertSource(source);
-        count++;
-      } catch (_) {}
+    }
+    int count = 0;
+    final list = unwrapped is List ? unwrapped : [unwrapped];
+    for (final item in list) {
+      if (item is Map) {
+        try {
+          final m = Map<String, dynamic>.from(item);
+          if ((m['bookSourceUrl'] ?? '').toString().isEmpty) continue;
+          final source = BookSource.fromJson(m);
+          await _db.insertSource(source);
+          count++;
+        } catch (_) {}
+      }
     }
     return count;
   }
