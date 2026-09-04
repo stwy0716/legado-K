@@ -241,8 +241,7 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
       decoded = jsonDecode(text);
     } catch (_) {
       // 可能是 JSONL：逐行一个对象
-      final lines = text.split(RegExp(r'[
-]+')).where((l) => l.trim().startsWith('{')).toList();
+      final lines = text.split(RegExp(r'[\r\n]+')).where((l) => l.trim().startsWith('{')).toList();
       if (lines.isEmpty) rethrow;
       final arr = [];
       for (final l in lines) {
