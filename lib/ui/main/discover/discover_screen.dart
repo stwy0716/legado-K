@@ -50,33 +50,42 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   Future<void> _loadExplore(BookSource source) async {
     setState(() {
       _selectedSource = source;
-      _isLoadingBooks = true;
-      _exploreItems = [];
+      _isLoadingBooks = false;
       _exploreBooks = [];
     });
-    try {
-      final items = <Map<String, String>>[];
-      setState(() {
-        _exploreItems = items;
-        _isLoadingBooks = false;
-      });
-    } catch (e) {
-      setState(() => _isLoadingBooks = false);
+    // 解析发现URL：每行一个分类，格式 "名称:::URL"；一行内多选项用 &&& 连接
+    final items = <Map<String, String>>[];
+    final raw = source.exploreUrl ?? '';
+    for (final line in raw.split(RegExp(r'[\n]'))) {
+      if (line.trim().isEmpty) continue;
+      for (final opt in line.split('&&&')) {
+        final seg = opt.trim();
+        if (seg.isEmpty) continue;
+        final idx = seg.indexOf(':::');
+        if (idx >= 0) {
+          items.add({'name': seg.substring(0, idx).trim(), 'url': seg.substring(idx + 3).trim()});
+        } else {
+          // 没有名称时整段作为URL，名称取默认
+          items.add({'name': '推荐', 'url': seg});
+        }
+      }
     }
+    setState(() => _exploreItems = items);
+    // 只有一个分类时直接加载
+    if (items.length == 1) _loadExploreBooks(items.first['url']!);
   }
 
   Future<void> _loadExploreBooks(String url) async {
     if (_selectedSource == null) return;
     setState(() => _isLoadingBooks = true);
     try {
-      // 尝试从发现URL获取书籍列表（简化处理：直接搜索）
-      final response = await _engine.explore(_selectedSource!);
-      setState(() {
+      final response = await _engine.exploreByUrl(_selectedSource!, url);
+      if (mounted) setState(() {
         _exploreBooks = response;
         _isLoadingBooks = false;
       });
     } catch (e) {
-      setState(() => _isLoadingBooks = false);
+      if (mounted) setState(() => _isLoadingBooks = false);
     }
   }
 
