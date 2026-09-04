@@ -532,6 +532,29 @@ class BookSourceEngine {
     }
   }
 
+  /// 按指定发现分类 URL 探索书籍
+  Future<List<SearchBook>> exploreByUrl(BookSource source, String exploreUrl, {int page = 1}) async {
+    if (source.ruleExplore == null || exploreUrl.isEmpty) return [];
+    try {
+      final url = _processUrlTemplate(exploreUrl, '', page);
+      final content = await _fetch(url);
+      final books = _extractBookList(content, source.ruleExplore!, source.bookSourceUrl);
+      return books.map((b) => SearchBook(
+        name: b['name'] ?? '',
+        author: b['author'] ?? '',
+        coverUrl: b['coverUrl'] ?? '',
+        bookUrl: b['bookUrl'] ?? '',
+        intro: b['intro'] ?? '',
+        kind: b['kind'] ?? '',
+        lastChapter: b['lastChapter'] ?? '',
+        originName: source.bookSourceName,
+        origin: source.bookSourceUrl,
+      )).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
   /// 获取书籍详情
   Future<Book?> getBookInfo(BookSource source, String bookUrl) async {
     try {
