@@ -1026,6 +1026,11 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   }
 
   void _startTTS() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TTS朗读功能')));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => TtsPlayerScreen(
+      ttsService: _ttsService,
+      chapters: _chapters,
+      currentIndex: _currentChapterIndex,
+      bookName: widget.book.name,
+    )));
   }
 }
