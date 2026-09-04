@@ -85,9 +85,9 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
     showDialog(context: context, builder: (context) => AlertDialog(
       title: Text('登录 - ${source.bookSourceName}'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: userController, decoration: const InputDecoration(labelText: '用户名/账号'), prefixIcon: const Icon(Icons.person_outline)),
+        TextField(controller: userController, decoration: const InputDecoration(labelText: '用户名/账号', prefixIcon: Icon(Icons.person_outline))),
         const SizedBox(height: 12),
-        TextField(controller: passController, obscureText: true, decoration: const InputDecoration(labelText: '密码'), prefixIcon: const Icon(Icons.lock_outline)),
+        TextField(controller: passController, obscureText: true, decoration: const InputDecoration(labelText: '密码', prefixIcon: Icon(Icons.lock_outline))),
         const SizedBox(height: 8),
         const Text('登录信息将保存到书源变量中', style: TextStyle(fontSize: 11, color: Colors.grey)),
       ]),
