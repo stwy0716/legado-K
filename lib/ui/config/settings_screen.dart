@@ -7,6 +7,11 @@ import 'package:legado_md3/ui/config/download_cache_config_screen.dart';
 import 'package:legado_md3/ui/config/cover_album_screen.dart';
 import 'package:legado_md3/ui/config/translate_config_screen.dart';
 import 'package:legado_md3/ui/cache/download_manage_screen.dart';
+import 'package:legado_md3/ui/config/replace_rule_screen.dart';
+import 'package:legado_md3/ui/config/txt_toc_rule_screen.dart';
+import 'package:legado_md3/ui/config/dict_rule_screen.dart';
+import 'package:legado_md3/ui/config/highlight_tag_rule_screen.dart';
+import 'package:legado_md3/ui/main/homepage/homepage_manage_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/ui/config/cloud_tts_screen.dart';
 import 'package:legado_md3/ui/cache/cache_manage_screen.dart';
@@ -645,27 +650,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showDownloadManager() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('下载管理功能')));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const DownloadManageScreen()));
   }
 
   void _showReplaceRuleScreen() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('替换净化规则功能')));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ReplaceRuleScreen()));
   }
 
   void _showTxtTocRuleScreen() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TXT目录规则功能')));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const TxtTocRuleScreen()));
   }
 
   void _showDictRuleScreen() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('字典规则功能')));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const DictRuleScreen()));
   }
 
   void _showHighlightRuleScreen() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('高亮标签配置功能')));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const HighlightTagRuleScreen()));
   }
 
   void _showHomepageModuleScreen() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('首页模块管理功能')));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const HomepageManageScreen()));
   }
 
   void _showAboutDialog() {
