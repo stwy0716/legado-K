@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_md3/ui/book/source/source_manage_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/data/model/book.dart';
@@ -351,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.pushNamed(context, '/local_import');
         break;
       case '网络导入':
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('网络导入功能')));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const SourceManageScreen()));
         break;
       case '备份恢复':
         Navigator.pushNamed(context, '/backup');

@@ -254,7 +254,7 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
             ListTile(
               leading: const Icon(Icons.share),
               title: const Text('分享'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('分享功能'))); },
+              onTap: () { Navigator.pop(context); Share.share('Legado RSS订阅源分享'); },
             ),
             ListTile(
               leading: const Icon(Icons.star_outline),
