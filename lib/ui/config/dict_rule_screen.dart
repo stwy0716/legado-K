@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DictRuleScreen extends StatefulWidget {
@@ -38,6 +40,31 @@ class _DictRuleScreenState extends State<DictRuleScreen> {
     await prefs.setStringList('dict_rules', _rules.map((r) => '${r['rule']}|||${r['replacement']}').toList());
   }
 
+  Future<void> _importNetwork() async {
+    final ctl = TextEditingController();
+    final url = await showDialog<String>(context: context, builder: (c) => AlertDialog(
+      title: const Text('网络导入字典规则'),
+      content: TextField(controller: ctl, decoration: const InputDecoration(hintText: '规则URL')),
+      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('取消')), FilledButton(onPressed: () => Navigator.pop(c, ctl.text), child: const Text('导入'))],
+    ));
+    if (url == null || url.isEmpty) return;
+    try {
+      final res = await Dio(BaseOptions(responseType: ResponseType.plain)).get<String>(url);
+      final data = jsonDecode(res.data ?? '[]');
+      final list = data is List ? data : [data];
+      for (final m in list) {
+        if (m is Map) {
+          final rule = (m['rule'] ?? m['showRule'] ?? m['url'] ?? '').toString();
+          final rep = (m['replacement'] ?? m['name'] ?? '').toString();
+          if (rule.isNotEmpty) _rules.add({'rule': rule, 'replacement': rep});
+        }
+      }
+      _saveRules();
+      setState(() {});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('导入 ${list.length} 条')));
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('失败: $e'))); }
+  }
+
   void _addRule() {
     if (_ruleController.text.trim().isEmpty) return;
     setState(() {
@@ -51,7 +78,11 @@ class _DictRuleScreenState extends State<DictRuleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('字典规则')),
+      appBar: AppBar(title: const Text('字典规则'), actions: [
+        PopupMenuButton<String>(onSelected: (v) => v == 'net' ? _importNetwork() : null, itemBuilder: (_) => const [
+          PopupMenuItem(value: 'net', child: Text('网络导入')),
+        ]),
+      ]),
       body: Column(
         children: [
           SwitchListTile(

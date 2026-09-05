@@ -241,7 +241,7 @@ class DatabaseService {
 
   Future<void> insertReplaceRule(ReplaceRule rule) async {
     final db = await database;
-    await db.insert('replace_rules', rule.toMap());
+    await db.insert('replace_rules', rule.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> updateReplaceRule(ReplaceRule rule) async {
@@ -263,7 +263,7 @@ class DatabaseService {
 
   Future<void> insertRssSource(RssSource source) async {
     final db = await database;
-    await db.insert('rss_sources', source.toMap());
+    await db.insert('rss_sources', source.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> updateRssSource(RssSource source) async {
@@ -322,7 +322,7 @@ class DatabaseService {
 
   Future<void> insertTxtTocRule(TxtTocRule rule) async {
     final db = await database;
-    await db.insert('txt_toc_rules', rule.toMap());
+    await db.insert('txt_toc_rules', rule.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> deleteTxtTocRule(int id) async {
