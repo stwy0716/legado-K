@@ -1061,7 +1061,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
 
   Future<void> _showReplaceRules() async {
     final all = await _db.getReplaceRules();
-    final enabled = all.where((r) => r.enable).toList();
+    final enabled = all.where((r) => r.enable == true).toList();
     final scopeForBook = enabled.where((r) => r.scope == null || r.scope!.isEmpty || r.scope == 'all' || r.scope == widget.book.origin || (r.scope ?? '').contains(widget.book.name)).toList();
     if (!mounted) return;
     showDialog(context: context, builder: (d) => AlertDialog(

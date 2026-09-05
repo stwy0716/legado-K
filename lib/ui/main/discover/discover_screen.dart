@@ -269,7 +269,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   void _showSourceSwitcher() {
     showModalBottomSheet(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
       const Padding(padding: EdgeInsets.all(16), child: Text('选择发现书源', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-      ..._sourcesWithExplore.where((s) => s.enabledExplore).map((s) => ListTile(
+      ..._sourcesWithExplore.where((s) => s.enabledExplore == true).map((s) => ListTile(
         leading: const Icon(Icons.menu_book),
         title: Text(s.bookSourceName),
         subtitle: Text(s.bookSourceUrl, maxLines: 1, overflow: TextOverflow.ellipsis),
