@@ -105,10 +105,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _calcCacheSize() async {
     try {
+      final db = DatabaseService();
       int bytes = 0;
-      final books = await _db.getAllBooks();
+      final books = await db.getAllBooks();
       for (final b in books) {
-        final chs = await _db.getChapters(b.name, b.author);
+        final chs = await db.getChapters(b.name, b.author);
         for (final ch in chs) { bytes += (ch.content ?? '').length; }
       }
       // 中文按 UTF-8 约 3 字节估算
