@@ -177,7 +177,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       }),
       ListTile(leading: const Icon(Icons.swap_horiz), title: const Text('换源'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeSourceScreen(book: book))); }),
       ListTile(leading: const Icon(Icons.image_outlined), title: const Text('换封面'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeCoverScreen(book: book))); }),
-      ListTile(leading: const Icon(Icons.download), title: const Text('缓存全部'), onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('开始缓存...'))); }),
+      ListTile(leading: const Icon(Icons.download), title: const Text('缓存全部'), onTap: () { Navigator.pop(context); _cacheOneBook(book); }),
       ListTile(leading: const Icon(Icons.flag_outlined), title: const Text('书籍标记'), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => BookMarkingScreen(bookName: book.name, author: book.author))); }),
       ListTile(leading: const Icon(Icons.bookmark_border), title: const Text('添加书签'), onTap: () async {
         Navigator.pop(context);
@@ -376,8 +376,55 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   }
 
   Future<void> _batchCache() async {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('开始缓存 ${_selectedBooks.length} 本书...')));
+    final picked = List.of(_selectedBooks);
     setState(() { _selectMode = false; _selectedBooks.clear(); });
+    int totalOk = 0, totalFail = 0, done = 0;
+    showDialog(context: context, barrierDismissible: false, builder: (d) => StatefulBuilder(builder: (d, setP) {
+      _cacheBooksWithProgress(picked, (ok, fail, d2, t2) { setP(() { totalOk = ok; totalFail = fail; done = d2; }); });
+      return AlertDialog(title: const Text('批量缓存'), content: Column(mainAxisSize: MainAxisSize.min, children: [
+        LinearProgressIndicator(value: picked.isEmpty ? 0 : done / picked.length),
+        const SizedBox(height: 12),
+        Text('进度 $done/${picked.length}，成功 $totalOk 章，失败 $totalFail 章'),
+      ]));
+    }));
+  }
+
+  Future<void> _cacheOneBook(Book book) async {
+    int ok = 0, fail = 0;
+    showDialog(context: context, barrierDismissible: false, builder: (d) => const Center(child: Card(child: Padding(padding: EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 12), Text('正在缓存章节...')])))));
+    final r = await _cacheBook(book);
+    ok = r.ok; fail = r.fail;
+    if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('缓存完成: 成功$ok章${fail > 0 ? ', 失败$fail章' : ''}'))); }
+  }
+
+  /// 逐章缓存一本书，返回成功/失败计数
+  Future<({int ok, int fail})> _cacheBook(Book book) async {
+    int ok = 0, fail = 0;
+    if (book.local || book.origin == null || book.noteUrl == null) return (ok: ok, fail: fail);
+    final sources = await _db.getAllSources(enabled: true);
+    final source = sources.where((s) => s.bookSourceUrl == book.origin).firstOrNull;
+    if (source == null) return (ok: ok, fail: fail);
+    final chapters = await _db.getChapters(book.name, book.author);
+    final engine = BookSourceEngine();
+    for (final ch in chapters) {
+      if (ch.isVolume || (ch.content ?? '').isNotEmpty) continue;
+      try {
+        final content = await engine.getContent(source, ch.url);
+        if (content != null && content.isNotEmpty) { await _db.updateChapterContent(book.name, book.author, ch.index, content); ok++; }
+        else { fail++; }
+      } catch (_) { fail++; }
+    }
+    return (ok: ok, fail: fail);
+  }
+
+  Future<void> _cacheBooksWithProgress(List<Book> books, void Function(int ok, int fail, int done, int total) onProgress) async {
+    int ok = 0, fail = 0;
+    for (var i = 0; i < books.length; i++) {
+      final r = await _cacheBook(books[i]);
+      ok += r.ok; fail += r.fail;
+      onProgress(ok, fail, i + 1, books.length);
+    }
+    if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('批量缓存完成: 成功$ok章${fail > 0 ? ', 失败$fail章' : ''}'))); }
   }
 
   Future<void> _batchDelete() async {

@@ -12,12 +12,14 @@ import 'package:legado_md3/data/model/read_config.dart';
 import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/source/source_engine.dart';
+import 'package:legado_md3/help/source/replace_rule_service.dart';
 import 'package:legado_md3/help/translate/translation_service.dart';
 import 'package:legado_md3/help/readaloud/tts_service.dart';
 import 'package:legado_md3/help/readaloud/reading_record.dart';
 import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/ui/book/read/config/reading_settings_screen.dart';
 import 'package:legado_md3/ui/book/chapter/chapter_list_screen.dart';
+import 'package:legado_md3/ui/config/replace_rule_screen.dart';
 import 'package:legado_md3/ui/book/search/search_content_screen.dart';
 import 'package:legado_md3/ui/book/read/widgets/download_sheet.dart';
 import 'package:legado_md3/ui/book/read/widgets/change_chapter_source_sheet.dart';
@@ -1057,15 +1059,40 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     ));
   }
 
-  void _showReplaceRules() {
-    showDialog(context: context, builder: (context) => AlertDialog(
+  Future<void> _showReplaceRules() async {
+    final all = await _db.getReplaceRules();
+    final enabled = all.where((r) => r.enable).toList();
+    final scopeForBook = enabled.where((r) => r.scope == null || r.scope!.isEmpty || r.scope == 'all' || r.scope == widget.book.origin || (r.scope ?? '').contains(widget.book.name)).toList();
+    if (!mounted) return;
+    showDialog(context: context, builder: (d) => AlertDialog(
       title: const Text('生效替换规则'),
-      content: const Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(leading: Icon(Icons.rule), title: Text('全局替换规则'), subtitle: Text('0条已启用'), trailing: Icon(Icons.chevron_right)),
-        ListTile(leading: Icon(Icons.rule_folder), title: Text('书源替换规则'), subtitle: Text('0条已启用'), trailing: Icon(Icons.chevron_right)),
-        ListTile(leading: Icon(Icons.preview), title: Text('预览替换效果'), trailing: Icon(Icons.chevron_right)),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(
+          leading: const Icon(Icons.rule), title: const Text('全局替换规则'),
+          subtitle: Text('${enabled.length} 条已启用'), trailing: const Icon(Icons.chevron_right),
+          onTap: () { Navigator.pop(d); Navigator.push(context, MaterialPageRoute(builder: (_) => const ReplaceRuleScreen())); },
+        ),
+        ListTile(
+          leading: const Icon(Icons.rule_folder), title: const Text('本书生效规则'),
+          subtitle: Text('${scopeForBook.length} 条对本书生效'),
+        ),
+        if ((_content ?? '').isNotEmpty) ListTile(
+          leading: const Icon(Icons.preview), title: const Text('预览当前章节替换效果'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () async {
+            Navigator.pop(d);
+            final svc = ReplaceRuleService();
+            final preview = svc.applyRules(_content!, enabled, scope: widget.book.origin);
+            if (!mounted) return;
+            showDialog(context: context, builder: (p) => AlertDialog(
+              title: const Text('替换预览'),
+              content: SizedBox(width: double.maxFinite, child: SingleChildScrollView(child: Text(preview, style: const TextStyle(fontSize: 13)))),
+              actions: [TextButton(onPressed: () => Navigator.pop(p), child: const Text('关闭'))],
+            ));
+          },
+        ),
       ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(d), child: const Text('关闭'))],
     ));
   }
 
@@ -1073,7 +1100,26 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ReadingSettingsScreen()));
   }
 
-  void _startTTS() {
+  Future<void> _startTTS() async {
+    // 注入按需加载器：朗读到未缓存章节时自动联网取正文
+    _ttsService.contentLoader = (index) async {
+      if (index < 0 || index >= _chapters.length) return null;
+      final ch = _chapters[index];
+      if ((ch.content ?? '').isNotEmpty) return ch.content;
+      if (widget.book.origin == null) return null;
+      final sources = await _db.getAllSources(enabled: true);
+      final source = sources.where((s) => s.bookSourceUrl == widget.book.origin).firstOrNull;
+      if (source == null || ch.url.isEmpty) return null;
+      final rules = await _db.getReplaceRules();
+      final content = await _engine.getContent(source, ch.url, replaceRules: rules);
+      if (content != null && content.isNotEmpty) {
+        await _db.updateChapterContent(widget.book.name, widget.book.author, ch.index, content);
+        ch.content = content;
+      }
+      return content;
+    };
+    _ttsService.setChapters(_chapters, startIndex: _currentChapterIndex);
+    if (!mounted) return;
     Navigator.push(context, MaterialPageRoute(builder: (_) => TtsPlayerScreen(
       ttsService: _ttsService,
       chapters: _chapters,
