@@ -12,6 +12,7 @@ import 'package:legado_md3/ui/config/txt_toc_rule_screen.dart';
 import 'package:legado_md3/ui/config/dict_rule_screen.dart';
 import 'package:legado_md3/ui/config/highlight_tag_rule_screen.dart';
 import 'package:legado_md3/ui/main/homepage/homepage_manage_screen.dart';
+import 'package:legado_md3/ui/config/import_book_config_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/ui/config/cloud_tts_screen.dart';
 import 'package:legado_md3/ui/cache/cache_manage_screen.dart';
@@ -427,6 +428,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: const Text('同步到WebDAV服务器'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showWebDavDialog(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.file_download_outlined),
+            title: const Text('导入书籍配置'),
+            subtitle: const Text('导入路径/文件名规则/排序'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ImportBookConfigScreen())),
           ),
           SwitchListTile(
             title: const Text('自动备份'),
