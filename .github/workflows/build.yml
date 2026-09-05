@@ -21,6 +21,9 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+      - name: Install Android SDK 35
+        run: |
+          yes | sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null 2>&1 || true
       - name: Install dependencies
         run: flutter pub get
       - name: Build Release APK (universal)
