@@ -708,6 +708,12 @@ class BookSourceEngine {
 
       if (result == null) return null;
 
+      // 正文分页：递归抓取 nextContentUrl 并拼接（最多 10 页防死循环）
+      final nextRule = rule['nextContentUrl'] ?? '';
+      if (nextRule.toString().isNotEmpty) {
+        result = await _appendNextPages(source, content, result, nextRule.toString(), contentUrl, 1);
+      }
+
       // 应用替换净化规则
       if (replaceRules != null && replaceRules.isNotEmpty) {
         result = _replaceService.applyRules(result, replaceRules,
@@ -719,6 +725,40 @@ class BookSourceEngine {
       return result.trim();
     } catch (e) {
       return null;
+    }
+  }
+
+  /// 递归拼接分页正文
+  Future<String> _appendNextPages(BookSource source, String pageContent,
+      String acc, String nextRule, String currentUrl, int depth) async {
+    if (depth >= 10) return acc;
+    try {
+      String? nextUrl;
+      if (_isJsonContent(pageContent)) {
+        nextUrl = _getStringFromJson(jsonDecode(pageContent), nextRule);
+      } else {
+        nextUrl = _extractString(pageContent, nextRule);
+      }
+      if (nextUrl == null || nextUrl.isEmpty || nextUrl == currentUrl) return acc;
+      nextUrl = _resolveUrl(nextUrl, source.bookSourceUrl);
+      final nextContent = await _fetch(nextUrl);
+      final contentRule = source.ruleContent!['content'] ?? '';
+      String? part;
+      if (_isJsonContent(nextContent)) {
+        part = _getStringFromJson(jsonDecode(nextContent), contentRule);
+      } else {
+        part = _extractString(nextContent, contentRule);
+      }
+      if (part == null || part.isEmpty) return acc;
+      acc = '$acc
+${_cleanHtml(part)}';
+      final nnRule = source.ruleContent!['nextContentUrl'] ?? '';
+      if (nnRule.toString().isNotEmpty) {
+        return _appendNextPages(source, nextContent, acc, nnRule.toString(), nextUrl, depth + 1);
+      }
+      return acc;
+    } catch (_) {
+      return acc;
     }
   }
 
