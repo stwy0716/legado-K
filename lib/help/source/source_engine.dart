@@ -750,8 +750,7 @@ class BookSourceEngine {
         part = _extractString(nextContent, contentRule);
       }
       if (part == null || part.isEmpty) return acc;
-      acc = '$acc
-${_cleanHtml(part)}';
+      acc = '$acc\n${_cleanHtml(part)}';
       final nnRule = source.ruleContent!['nextContentUrl'] ?? '';
       if (nnRule.toString().isNotEmpty) {
         return _appendNextPages(source, nextContent, acc, nnRule.toString(), nextUrl, depth + 1);
