@@ -38,14 +38,14 @@ class ReplaceRule {
 
   factory ReplaceRule.fromMap(Map<String, dynamic> map) => ReplaceRule(
     id: map['id'] as int?,
-    replaceSummary: map['replaceSummary'] as String,
-    replaceRule: map['replaceRule'] as String,
-    replacement: map['replacement'] as String,
-    enable: (map['enable'] as int?) == 1,
-    isTitle: (map['isTitle'] as int?) == 1,
-    isContent: (map['isContent'] as int?) != 0,
-    isRegex: (map['isRegex'] as int?) != 0,
-    scope: map['scope'] as String?,
+    replaceSummary: (map['replaceSummary'] ?? map['summary'] ?? '') as String,
+    replaceRule: (map['replaceRule'] ?? map['regex'] ?? map['pattern'] ?? '') as String,
+    replacement: (map['replacement'] ?? '') as String,
+    enable: map['enable'] == null ? true : (map['enable'] is bool ? map['enable'] as bool : (map['enable'] as int) == 1),
+    isTitle: map['isTitle'] == null ? false : (map['isTitle'] is bool ? map['isTitle'] as bool : (map['isTitle'] as int) == 1),
+    isContent: map['isContent'] == null ? true : (map['isContent'] is bool ? map['isContent'] as bool : (map['isContent'] as int) != 0),
+    isRegex: map['isRegex'] == null ? true : (map['isRegex'] is bool ? map['isRegex'] as bool : (map['isRegex'] as int) != 0),
+    scope: (map['scope'] ?? map['scopeContent']) as String?,
     order: map['order_num'] as int? ?? map['order'] as int?,
   );
 }

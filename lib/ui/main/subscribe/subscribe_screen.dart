@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
@@ -29,6 +31,43 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  void _showImportMenu() {
+    showModalBottomSheet(context: context, builder: (c) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(leading: const Icon(Icons.cloud_outlined), title: const Text('网络导入'), onTap: () { Navigator.pop(c); _importNetwork(); }),
+      ListTile(leading: const Icon(Icons.content_paste), title: const Text('剪贴板导入'), onTap: () async { Navigator.pop(c); final t = (await Clipboard.getData('text/plain'))?.text ?? ''; _parseAndSave(t); }),
+    ])));
+  }
+
+  Future<void> _importNetwork() async {
+    final ctl = TextEditingController();
+    final url = await showDialog<String>(context: context, builder: (c) => AlertDialog(
+      title: const Text('网络导入订阅源'),
+      content: TextField(controller: ctl, decoration: const InputDecoration(hintText: '订阅源URL')),
+      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('取消')), FilledButton(onPressed: () => Navigator.pop(c, ctl.text), child: const Text('导入'))],
+    ));
+    if (url == null || url.isEmpty) return;
+    try {
+      final res = await Dio(BaseOptions(responseType: ResponseType.plain)).get<String>(url);
+      await _parseAndSave(res.data ?? '');
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('失败: $e'))); }
+  }
+
+  Future<void> _parseAndSave(String raw) async {
+    if (raw.trim().isEmpty) return;
+    try {
+      final data = jsonDecode(raw);
+      final list = data is List ? data : [data];
+      int n = 0;
+      for (final m in list) {
+        if (m is Map) {
+          try { await _db.insertRssSource(RssSource.fromJson(Map<String, dynamic>.from(m))); n++; } catch (_) {}
+        }
+      }
+      await _loadData();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('导入 $n 个订阅源')));
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('解析失败: $e'))); }
   }
 
   Future<void> _loadData() async {
@@ -99,6 +138,7 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
             icon: const Icon(Icons.refresh),
             onPressed: _refreshAll,
           ),
+          IconButton(icon: const Icon(Icons.file_download_outlined), tooltip: '导入订阅源', onPressed: _showImportMenu),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'sources') setState(() => _showSources = true);
