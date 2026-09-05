@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_md3/ui/book/read/config/click_action_config_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:legado_md3/di/book_provider.dart';
 
@@ -122,6 +123,7 @@ class _ReadingSettingsScreenState extends State<ReadingSettingsScreen> with Sing
     return ListView(
       children: [
         ListTile(title: const Text('翻页动画'), trailing: DropdownButton<int>(value: config.pageAnim, items: const [DropdownMenuItem(value: 0, child: Text('覆盖')), DropdownMenuItem(value: 1, child: Text('仿真')), DropdownMenuItem(value: 2, child: Text('滑动')), DropdownMenuItem(value: 3, child: Text('滚动')), DropdownMenuItem(value: 4, child: Text('无动画')), DropdownMenuItem(value: 5, child: Text('上下'))], onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.pageAnim = v ?? 0))),
+        ListTile(title: const Text('点击区域设置'), subtitle: const Text('配置屏幕 3×3 区域点击动作', style: TextStyle(fontSize: 11)), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClickActionConfigScreen()))),
         SwitchListTile(title: const Text('点击翻页'), value: config.clickTurnPage, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.clickTurnPage = v)),
         SwitchListTile(title: const Text('音量键翻页'), value: config.volumeKeyPage, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.volumeKeyPage = v)),
         SwitchListTile(title: const Text('音量键反向'), value: config.volumeKeyReverse, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.volumeKeyReverse = v)),

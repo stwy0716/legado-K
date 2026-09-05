@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/data/model/bookmark.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -35,6 +36,15 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   final DatabaseService _db = DatabaseService();
   final BookSourceEngine _engine = BookSourceEngine();
   final TtsService _ttsService = TtsService();
+  List<int> _clickActions = [1,3,2,1,3,2,1,3,2];
+  Future<void> _loadClickActions() async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString('click_actions');
+    if (raw != null) {
+      final l = raw.split(',').map((e)=>int.tryParse(e)??2).toList();
+      if (l.length==9) _clickActions = l;
+    }
+  }
   final ReadingRecordService _recordService = ReadingRecordService();
   List<BookChapter> _chapters = [];
   int _currentChapterIndex = 0;
@@ -49,6 +59,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
+    _loadClickActions();
     _menuController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -200,6 +211,14 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     }
   }
 
+  void _nextChapter() {
+    if (_currentChapterIndex < _chapters.length - 1) _loadChapterContent(_currentChapterIndex + 1);
+  }
+
+  void _prevChapter() {
+    if (_currentChapterIndex > 0) _loadChapterContent(_currentChapterIndex - 1);
+  }
+
   @override
   Widget build(BuildContext context) {
     final readProvider = context.watch<ReadProvider>();
@@ -219,13 +238,17 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
             : GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapUp: (details) {
-                  final width = MediaQuery.of(context).size.width;
-                  if (details.globalPosition.dx < width / 3) {
-                    _prevPage();
-                  } else if (details.globalPosition.dx > width * 2 / 3) {
-                    _nextPage();
-                  } else {
-                    _toggleMenu();
+                  final size = MediaQuery.of(context).size;
+                  final col = details.globalPosition.dx < size.width / 3 ? 0 : (details.globalPosition.dx > size.width * 2 / 3 ? 2 : 1);
+                  final row = details.globalPosition.dy < size.height / 3 ? 0 : (details.globalPosition.dy > size.height * 2 / 3 ? 2 : 1);
+                  final action = _clickActions[row * 3 + col];
+                  switch (action) {
+                    case 1: _prevChapter(); break;
+                    case 2: _nextChapter(); break;
+                    case 3: _toggleMenu(); break;
+                    case 4: _prevPage(); break;
+                    case 5: _nextPage(); break;
+                    default: break;
                   }
                 },
                 child: Stack(
