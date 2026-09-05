@@ -100,6 +100,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _paragraphSpacing = _prefs?.getInt('paragraph_spacing') ?? 1;
       _pageAnim = _prefs?.getInt('page_anim') ?? 0;
     });
+    _calcCacheSize();
+  }
+
+  Future<void> _calcCacheSize() async {
+    try {
+      int bytes = 0;
+      final books = await _db.getAllBooks();
+      for (final b in books) {
+        final chs = await _db.getChapters(b.name, b.author);
+        for (final ch in chs) { bytes += (ch.content ?? '').length; }
+      }
+      // 中文按 UTF-8 约 3 字节估算
+      bytes = bytes * 2;
+      String size;
+      if (bytes < 1024) { size = '$bytes B'; }
+      else if (bytes < 1024 * 1024) { size = '${(bytes / 1024).toStringAsFixed(1)} KB'; }
+      else { size = '${(bytes / 1024 / 1024).toStringAsFixed(2)} MB'; }
+      if (mounted) setState(() => _cacheSize = size);
+    } catch (_) {}
   }
 
   Future<void> _restoreWebService() async {

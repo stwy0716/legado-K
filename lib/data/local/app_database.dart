@@ -468,6 +468,20 @@ class DatabaseService {
     await db.insert('book_knowledge', knowledge.toMap());
   }
 
+  Future<void> deleteBookKnowledge(int id) async {
+    final db = await database;
+    await db.delete('book_knowledge', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> clearBookKnowledge(String bookName, String author, {String? type}) async {
+    final db = await database;
+    if (type != null) {
+      await db.delete('book_knowledge', where: 'bookName = ? AND author = ? AND type = ?', whereArgs: [bookName, author, type]);
+    } else {
+      await db.delete('book_knowledge', where: 'bookName = ? AND author = ?', whereArgs: [bookName, author]);
+    }
+  }
+
   // 书籍标记DAO
   Future<List<BookMarking>> getBookMarkings(String bookName, String author) async {
     final db = await database;
