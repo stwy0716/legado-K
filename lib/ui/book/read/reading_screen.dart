@@ -12,6 +12,7 @@ import 'package:legado_md3/data/model/read_config.dart';
 import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/source/source_engine.dart';
+import 'package:legado_md3/help/translate/translation_service.dart';
 import 'package:legado_md3/help/readaloud/tts_service.dart';
 import 'package:legado_md3/help/readaloud/reading_record.dart';
 import 'package:legado_md3/data/model/book_source.dart';
@@ -992,16 +993,40 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     if (chapterIndex != null) _loadChapterContent(chapterIndex);
   }
 
-  void _showTranslateDialog() {
-    showDialog(context: context, builder: (context) => AlertDialog(
+  Future<void> _showTranslateDialog() async {
+    final p = await SharedPreferences.getInstance();
+    bool auto = p.getBool('translate_enabled') ?? false;
+    const langs = ['zh-CN','zh-TW','en','ja','ko','fr','de','es','ru'];
+    const names = {'zh-CN':'简体中文','zh-TW':'繁体中文','en':'英语','ja':'日语','ko':'韩语','fr':'法语','de':'德语','es':'西班牙语','ru':'俄语'};
+    String target = p.getString('tr_target') ?? 'zh-CN';
+    if (!mounted) return;
+    await showDialog(context: context, builder: (dctx) => StatefulBuilder(builder: (dctx, setD) => AlertDialog(
       title: const Text('翻译设置'),
-      content: const Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(leading: Icon(Icons.language), title: Text('翻译引擎'), subtitle: Text('百度翻译'), trailing: Icon(Icons.chevron_right)),
-        ListTile(leading: Icon(Icons.swap_horiz), title: Text('目标语言'), subtitle: Text('简体中文'), trailing: Icon(Icons.chevron_right)),
-        SwitchListTile(title: Text('自动翻译'), value: false, onChanged: null),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        SwitchListTile(
+          title: const Text('本章自动翻译'),
+          value: auto,
+          onChanged: (v) async { await p.setBool('translate_enabled', v); await TranslationService.instance.loadPrefs(); setD(() => auto = v); },
+        ),
+        ListTile(
+          leading: const Icon(Icons.swap_horiz), title: const Text('目标语言'),
+          trailing: DropdownButton<String>(value: target, items: langs.map((l) => DropdownMenuItem(value: l, child: Text(names[l] ?? l))).toList(),
+            onChanged: (v) async { await p.setString('tr_target', v ?? 'zh-CN'); await TranslationService.instance.loadPrefs(); setD(() => target = v ?? 'zh-CN'); }),
+        ),
       ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
-    ));
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('关闭')),
+        FilledButton(onPressed: () async { Navigator.pop(dctx); await _translateCurrentChapter(); }, child: const Text('立即翻译本章')),
+      ],
+    )));
+  }
+
+  Future<void> _translateCurrentChapter() async {
+    if ((_content ?? '').isEmpty) return;
+    await TranslationService.instance.loadPrefs();
+    if (mounted) setState(() => _isLoadingChapter = true);
+    final translated = await TranslationService.instance.translateParagraphs(_content!);
+    if (mounted) setState(() { _content = translated; _paginateContent(); _isLoadingChapter = false; });
   }
 
   void _showChapterSummary() {

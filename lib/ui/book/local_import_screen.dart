@@ -5,6 +5,7 @@ import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/source/txt_parser.dart';
+import 'package:legado_md3/help/storage/epub_parser.dart';
 import 'package:legado_md3/ui/book/import/remote_book_screen.dart';
 
 class LocalImportScreen extends StatefulWidget {
@@ -25,7 +26,7 @@ class _LocalImportScreenState extends State<LocalImportScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['txt', 'TXT'],
+        allowedExtensions: ['txt', 'TXT', 'epub', 'EPUB'],
         allowMultiple: true,
       );
       if (result != null && result.files.isNotEmpty) {
@@ -58,33 +59,51 @@ class _LocalImportScreenState extends State<LocalImportScreen> {
     for (var i = 0; i < _selectedFiles.length; i++) {
       try {
         final file = _selectedFiles[i];
-        final content = await file.readAsString();
         final fileName = file.uri.pathSegments.last;
+        final lower = fileName.toLowerCase();
+        Book book;
+        List<BookChapter> chapters;
+        if (lower.endsWith('.epub')) {
+          // EPUB：走专用解析器，逐章读取正文入库
+          final parsed = await EpubParser.parse(file.path);
+          if (parsed == null) throw 'EPUB 解析失败';
+          book = parsed
+            ..origin = 'local'
+            ..originName = '本地书籍'
+            ..noteUrl = 'local://${file.path}'
+            ..bookUrl = 'local://${file.path}';
+          final toc = await EpubParser.parseToc(file.path);
+          chapters = <BookChapter>[];
+          for (final ch in toc) {
+            final body = await EpubParser.parseChapterContent(file.path, ch.url);
+            chapters.add(BookChapter(
+              index: ch.index, title: ch.title, url: ch.url,
+              isVolume: ch.isVolume, content: body,
+            ));
+          }
+          if (chapters.isEmpty) chapters = [BookChapter(index: 0, title: '正文', url: '', content: await EpubParser.parseChapterContent(file.path, '') ?? '')];
+          book.lastChapter = chapters.isNotEmpty ? chapters.last.title : null;
+        } else {
+          // TXT
+          final content = await file.readAsString();
+          final info = _parser.extractBookInfo(content, fileName);
+          chapters = _parser.parseChapters(content);
+          book = Book(
+            name: info['name'] ?? fileName,
+            author: info['author'] ?? '未知',
+            intro: info['intro'],
+            origin: 'local',
+            originName: '本地书籍',
+            noteUrl: 'local://${file.path}',
+            bookUrl: 'local://${file.path}',
+            type: 1,
+            lastChapter: chapters.isNotEmpty ? chapters.last.title : null,
+            wordCount: content.length,
+          );
+        }
 
-        // 提取书籍信息
-        final info = _parser.extractBookInfo(content, fileName);
-
-        // 解析章节
-        final chapters = _parser.parseChapters(content);
-
-        // 创建书籍
-        final book = Book(
-          name: info['name'] ?? fileName,
-          author: info['author'] ?? '未知',
-          intro: info['intro'],
-          origin: 'local',
-          originName: '本地书籍',
-          noteUrl: 'local://${file.path}',
-          bookUrl: 'local://${file.path}',
-          type: 1, // 本地书籍
-          lastChapter: chapters.isNotEmpty ? chapters.last.title : null,
-          wordCount: content.length,
-        );
-
-        // 保存到数据库
         await _db.insertBook(book);
         await _db.saveChapters(book.name, book.author, chapters);
-
         successCount++;
       } catch (e) {
         debugPrint('导入失败: $e');

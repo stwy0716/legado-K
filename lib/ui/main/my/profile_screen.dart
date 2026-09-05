@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:legado_md3/help/web/web_service.dart';
 import 'package:legado_md3/ui/book/source/source_manage_screen.dart';
 import 'package:legado_md3/ui/config/replace_rule_screen.dart';
@@ -115,6 +117,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _checkUpdate() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(content: Text('正在检查更新...')));
+    try {
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 10), receiveTimeout: const Duration(seconds: 15)));
+      final resp = await dio.get('https://api.github.com/repos/stwy0716/legado-K/releases/latest');
+      final tag = (resp.data['tag_name'] ?? '').toString();
+      final body = (resp.data['body'] ?? '').toString();
+      final htmlUrl = (resp.data['html_url'] ?? 'https://github.com/stwy0716/legado-K/releases').toString();
+      final latest = tag.replaceAll(RegExp(r'[^0-9.]'), '').split('.').map((e) => int.tryParse(e) ?? 0).toList();
+      final cur = [3, 26, 7];
+      bool hasNew = false;
+      for (var i = 0; i < 3; i++) {
+        final l = i < latest.length ? latest[i] : 0;
+        if (l > cur[i]) { hasNew = true; break; }
+        if (l < cur[i]) break;
+      }
+      if (!mounted) return;
+      if (hasNew) {
+        showDialog(context: context, builder: (d) => AlertDialog(
+          title: Text('发现新版本 $tag'),
+          content: Text(body.isEmpty ? '是否前往下载最新版本？' : body),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d), child: const Text('稍后')),
+            FilledButton(onPressed: () { Navigator.pop(d); launchUrl(Uri.parse(htmlUrl), mode: LaunchMode.externalApplication); }, child: const Text('前往下载')),
+          ],
+        ));
+      } else {
+        messenger.showSnackBar(const SnackBar(content: Text('当前已是最新版本')));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('检查更新失败: $e')));
+    }
+  }
+
   void _showAbout(BuildContext context) {
     showDialog(context: context, builder: (context) => AlertDialog(
       title: const Text('关于'),
@@ -127,11 +164,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const Divider(height: 24),
         ListTile(
           dense: true, leading: const Icon(Icons.update, size: 20), title: const Text('检查更新'),
-          onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('当前已是最新版本'))); },
+          onTap: () { Navigator.pop(context); _checkUpdate(); },
         ),
         ListTile(
           dense: true, leading: const Icon(Icons.code, size: 20), title: const Text('GitHub项目'),
-          onTap: () { Navigator.pop(context); },
+          onTap: () { Navigator.pop(context); launchUrl(Uri.parse('https://github.com/stwy0716/legado-K'), mode: LaunchMode.externalApplication); },
         ),
         ListTile(
           dense: true, leading: const Icon(Icons.people_outline, size: 20), title: const Text('贡献者'),

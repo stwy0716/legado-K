@@ -33,7 +33,7 @@ class _BookMarkingScreenState extends State<BookMarkingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('书籍标记 - ${widget.bookName}')),
+      appBar: AppBar(title: Text(widget.bookName.isEmpty ? '书籍标记' : '书籍标记 - ${widget.bookName}')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _markings.isEmpty

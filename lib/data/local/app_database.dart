@@ -471,7 +471,10 @@ class DatabaseService {
   // 书籍标记DAO
   Future<List<BookMarking>> getBookMarkings(String bookName, String author) async {
     final db = await database;
-    final maps = await db.query('book_markings', where: 'bookName = ? AND author = ?', whereArgs: [bookName, author], orderBy: 'createTime DESC');
+    // bookName 为空时返回全部标记（“我的-书籍标记”总览）
+    final maps = bookName.isEmpty
+        ? await db.query('book_markings', orderBy: 'createTime DESC')
+        : await db.query('book_markings', where: 'bookName = ? AND author = ?', whereArgs: [bookName, author], orderBy: 'createTime DESC');
     return maps.map((m) => BookMarking.fromMap(m)).toList();
   }
 
