@@ -4,6 +4,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/data/model/replace_rule.dart';
+import 'package:legado_md3/data/model/bookmark.dart';
+import 'package:legado_md3/data/model/rss_source.dart';
+import 'package:legado_md3/data/model/txt_toc_rule.dart';
+import 'package:legado_md3/data/model/dict_rule.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 
 /// 备份恢复服务
@@ -43,6 +47,11 @@ class BackupService {
       final records = await _db.getReadRecords();
       backup['readRecords'] = records;
     }
+
+    backup['rssSources'] = (await _db.getRssSources()).map((s) => s.toMap()).toList();
+    backup['bookmarks'] = (await _db.getBookmarks()).map((b) => b.toMap()).toList();
+    backup['txtTocRules'] = (await _db.getTxtTocRules()).map((r) => r.toMap()).toList();
+    backup['dictRules'] = (await _db.getDictRules()).map((r) => r.toMap()).toList();
 
     return backup;
   }
@@ -117,6 +126,31 @@ class BackupService {
           } catch (_) {
             result.rulesFailed++;
           }
+        }
+      }
+
+      // 恢复RSS源
+      if (backup.containsKey('rssSources') && backup['rssSources'] is List) {
+        for (final m in backup['rssSources']) {
+          try { await _db.insertRssSource(RssSource.fromMap(Map<String, dynamic>.from(m))); } catch (_) {}
+        }
+      }
+      // 恢复书签
+      if (backup.containsKey('bookmarks') && backup['bookmarks'] is List) {
+        for (final m in backup['bookmarks']) {
+          try { await _db.insertBookmark(Bookmark.fromMap(Map<String, dynamic>.from(m))); } catch (_) {}
+        }
+      }
+      // 恢复TXT目录规则
+      if (backup.containsKey('txtTocRules') && backup['txtTocRules'] is List) {
+        for (final m in backup['txtTocRules']) {
+          try { await _db.insertTxtTocRule(TxtTocRule.fromMap(Map<String, dynamic>.from(m))); } catch (_) {}
+        }
+      }
+      // 恢复字典规则
+      if (backup.containsKey('dictRules') && backup['dictRules'] is List) {
+        for (final m in backup['dictRules']) {
+          try { await _db.insertDictRule(DictRule.fromMap(Map<String, dynamic>.from(m))); } catch (_) {}
         }
       }
 
