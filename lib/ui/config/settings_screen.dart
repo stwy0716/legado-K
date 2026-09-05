@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:legado_md3/help/web/web_service.dart';
 import 'package:legado_md3/ui/config/theme_manage_screen.dart';
 import 'package:legado_md3/ui/config/cover_config_screen.dart';
 import 'package:legado_md3/ui/book/manga/manga_config_screen.dart';
@@ -41,6 +43,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _showNotification = true;
   bool _landscapeLock = false;
   bool _webServiceEnabled = false;
+  final WebService _webService = WebService();
+  String _lanIp = 'localhost';
   bool _autoBackup = false;
   bool _autoCleanCache = false;
   String _cacheSize = '0 MB';
@@ -63,6 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _restoreWebService();
     _loadSettings();
   }
 
@@ -89,6 +94,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _paragraphSpacing = _prefs?.getInt('paragraph_spacing') ?? 1;
       _pageAnim = _prefs?.getInt('page_anim') ?? 0;
     });
+  }
+
+  Future<void> _restoreWebService() async {
+    try {
+      final ifaces = await NetworkInterface.list(type: InternetAddressType.IPv4);
+      for (final ifc in ifaces) {
+        for (final a in ifc.addresses) {
+          if (!a.isLoopback) { _lanIp = a.address; break; }
+        }
+      }
+    } catch (_) {}
+    final p = await SharedPreferences.getInstance();
+    if (p.getBool('web_service_enabled') ?? false) {
+      _webServiceEnabled = true;
+      _webService.start().catchError((_) {});
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleWebService(bool v) async {
+    setState(() { _webServiceEnabled = v; });
+    await _saveSetting('web_service_enabled', v);
+    try {
+      if (v) {
+        await _webService.start();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Web服务已启动 http://$_lanIp:1122')));
+      } else {
+        await _webService.stop();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Web服务操作失败: $e')));
+    }
   }
 
   Future<void> _saveSetting(String key, dynamic value) async {
@@ -391,12 +428,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('启用Web服务'),
             subtitle: const Text('通过浏览器管理书籍'),
             value: _webServiceEnabled,
-            onChanged: (v) => setState(() { _webServiceEnabled = v; _saveSetting('web_service_enabled', v); }),
+            onChanged: _toggleWebService,
           ),
           ListTile(
             leading: const Icon(Icons.wifi),
             title: const Text('Web服务地址'),
-            subtitle: Text(_webServiceEnabled ? 'http://localhost:1122' : '未启用'),
+            subtitle: Text(_webServiceEnabled ? 'http://$_lanIp:1122' : '未启用'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showWebServiceDialog(),
           ),
