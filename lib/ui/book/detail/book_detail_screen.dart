@@ -115,7 +115,31 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   }
 
   Future<void> _downloadAll() async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('开始缓存全部章节...')));
+    if (_chapters.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂无章节，请先更新目录')));
+      return;
+    }
+    final sources = await _db.getAllSources(enabled: true);
+    final source = sources.where((s) => s.bookSourceUrl == widget.book.origin).firstOrNull;
+    if (source == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未找到对应书源')));
+      return;
+    }
+    final engine = BookSourceEngine();
+    int ok = 0, fail = 0;
+    showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: Card(child: Padding(padding: EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 12), Text('正在缓存章节...')])))));
+    for (int i = 0; i < _chapters.length; i++) {
+      final ch = _chapters[i];
+      if (ch.isVolume) continue;
+      try {
+        final content = await engine.getContent(source, ch.url);
+        if (content != null && content.isNotEmpty) {
+          await _db.updateChapterContent(widget.book.name, widget.book.author, ch.index, content);
+          ok++;
+        } else { fail++; }
+      } catch (_) { fail++; }
+    }
+    if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('缓存完成: 成功$ok章${fail > 0 ? ', 失败$fail章' : ''}'))); }
   }
 
   void _showMoreMenu() {
