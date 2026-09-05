@@ -58,6 +58,29 @@ class ReadingRecordService {
     return days.length;
   }
 
+  /// 连续阅读天数（从今天起，若今天无记录则从昨天起算，向前连续）
+  Future<int> getContinuousDays() async {
+    final records = await _db.getReadRecords();
+    final days = <String>{};
+    for (final r in records) {
+      final t = r.date as int?;
+      if (t == null) continue;
+      final d = DateTime.fromMillisecondsSinceEpoch(t);
+      days.add('${d.year}-${d.month}-${d.day}');
+    }
+    if (days.isEmpty) return 0;
+    var cursor = DateTime.now();
+    String key(DateTime d) => '${d.year}-${d.month}-${d.day}';
+    // 今天没读则从昨天开始（保持连续 streak 不中断）
+    if (!days.contains(key(cursor))) cursor = cursor.subtract(const Duration(days: 1));
+    int streak = 0;
+    while (days.contains(key(cursor))) {
+      streak++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
   /// 获取最近N天的阅读统计
   Future<Map<String, int>> getRecentStats(int days) async {
     final records = await _db.getReadRecords();
