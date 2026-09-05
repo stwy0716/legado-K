@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:legado_md3/ui/qrcode/qr_scanner_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
@@ -167,9 +168,17 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
               leading: const Icon(Icons.qr_code_scanner),
               title: const Text('二维码导入'),
               subtitle: const Text('扫描二维码导入书源'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('二维码导入功能（需要相机权限）')));
+                final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const QrScannerScreen(title: '扫描书源二维码')));
+                if (code == null || code.isEmpty) return;
+                final text = code.trim();
+                if (text.startsWith('http')) {
+                  _importFromUrl(text);
+                } else {
+                  final n = await _importSourcesFromString(text);
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('导入 $n 个书源')));
+                }
               },
             ),
             ListTile(
