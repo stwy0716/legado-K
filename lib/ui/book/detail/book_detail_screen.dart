@@ -8,6 +8,7 @@ import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/source/source_engine.dart';
 import 'package:legado_md3/ui/book/read/reading_screen.dart';
+import 'package:legado_md3/ui/book/audio/audio_player_screen.dart';
 import 'package:legado_md3/ui/book/chapter/chapter_list_screen.dart';
 import 'package:legado_md3/ui/book/knowledge/character_list_screen.dart';
 import 'package:legado_md3/ui/book/detail/change_source_screen.dart';
@@ -297,7 +298,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book))),
+                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => book.type == 2
+                              ? AudioPlayerScreen(book: book)
+                              : ReadingScreen(book: book))),
                           icon: const Icon(Icons.play_arrow),
                           label: const Text('开始阅读'),
                         ),
@@ -335,7 +338,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                               ],
                             ),
                           ),
-                          TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReadingScreen(book: book, initialChapter: _readChapterIndex))), child: const Text('继续')),
+                          TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => book.type == 2
+                              ? AudioPlayerScreen(book: book, initialIndex: _readChapterIndex)
+                              : ReadingScreen(book: book, initialChapter: _readChapterIndex))), child: const Text('继续')),
                         ],
                       ),
                     ),

@@ -38,6 +38,7 @@ dependencies:
   tuple: ^2.0.2
   shelf: ^1.4.1
   shelf_router: ^1.1.4
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
