@@ -28,7 +28,7 @@ jobs:
         run: flutter pub get
       - name: Build Release APK (universal)
         run: |
-          flutter build apk --release
+          flutter build apk --release --verbose
           cp build/app/outputs/flutter-apk/app-release.apk /tmp/app-universal-release.apk
       - name: Build arm64 APK
         run: |
