@@ -5,6 +5,7 @@ import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/source/txt_parser.dart';
+import 'package:legado_md3/ui/book/import/remote_book_screen.dart';
 
 class LocalImportScreen extends StatefulWidget {
   const LocalImportScreen({super.key});
@@ -106,6 +107,8 @@ class _LocalImportScreenState extends State<LocalImportScreen> {
       appBar: AppBar(
         title: const Text('本地导入'),
         actions: [
+          IconButton(tooltip: '远程书籍', icon: const Icon(Icons.cloud_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RemoteBookScreen()))),
           if (_selectedFiles.isNotEmpty)
             TextButton(
               onPressed: _isImporting ? null : _importBooks,

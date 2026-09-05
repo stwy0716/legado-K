@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
 import 'package:share_plus/share_plus.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/di/book_provider.dart';
@@ -241,6 +242,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
           _batchBtn(Icons.drive_file_move_outline, '移动分组', _batchMoveGroup),
           _batchBtn(Icons.cloud_download_outlined, '缓存', _batchCache),
+          _batchBtn(Icons.file_upload_outlined, '导出', _batchExport),
           _batchBtn(Icons.delete_sweep_outlined, '删除', _batchDelete, danger: true),
         ]),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), child: Align(alignment: Alignment.centerLeft, child: Text('已选 ${_selectedBooks.length} 本', style: const TextStyle(fontSize: 12, color: Colors.grey)))),
@@ -387,6 +389,31 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       for (final book in _selectedBooks) { await _db.deleteBook(book.name, book.author); }
       if (mounted) { final p = Provider.of<BookProvider>(context, listen: false); await p.loadBooks(); setState(() { _selectMode = false; _selectedBooks.clear(); }); }
     }
+  }
+
+  Future<void> _batchExport() async {
+    final picked = List.of(_selectedBooks);
+    setState(() { _selectMode = false; _selectedBooks.clear(); });
+    int ok = 0;
+    for (final book in picked) {
+      try {
+        final chapters = await _db.getChapters(book.name, book.author);
+        final buf = StringBuffer()
+          ..writeln('《${book.name}》 作者:${book.author}')
+          ..writeln(book.intro ?? '')
+          ..writeln('\n');
+        for (final ch in chapters) {
+          buf.writeln(ch.title);
+          buf.writeln(ch.content ?? '');
+          buf.writeln('');
+        }
+        final file = File('${Directory.systemTemp.path}/${book.name}.txt');
+        await file.writeAsString(buf.toString());
+        await Share.shareXFiles([XFile(file.path)], text: '《${book.name}》导出');
+        ok++;
+      } catch (_) {}
+    }
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已导出 $ok 本')));
   }
 
   void _toggleSelect(Book book) => setState(() => _selectedBooks.contains(book) ? _selectedBooks.remove(book) : _selectedBooks.add(book));
