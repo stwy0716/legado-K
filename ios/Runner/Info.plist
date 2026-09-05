@@ -52,5 +52,7 @@
     <string>需要访问文档文件夹以导入本地书籍</string>
     <key>NSFileProviderDomainUsageDescription</key>
     <string>需要访问文件以导入本地书籍</string>
+    <key>NSCameraUsageDescription</key>
+    <string>需要使用相机扫描书源二维码</string>
 </dict>
 </plist>
