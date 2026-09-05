@@ -7,7 +7,7 @@ import 'package:legado_md3/ui/book/manga/manga_config_screen.dart';
 import 'package:legado_md3/ui/config/other_config_screen.dart';
 import 'package:legado_md3/ui/config/download_cache_config_screen.dart';
 import 'package:legado_md3/ui/config/cover_album_screen.dart';
-import 'package:legado_md3/ui/config/translate_config_screen.dart';
+import 'package:legado_md3/ui/config/translation_screen.dart';
 import 'package:legado_md3/ui/cache/download_manage_screen.dart';
 import 'package:legado_md3/ui/config/replace_rule_screen.dart';
 import 'package:legado_md3/ui/config/txt_toc_rule_screen.dart';
@@ -49,6 +49,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _autoCleanCache = false;
   String _cacheSize = '0 MB';
   bool _autoNextPage = false;
+  bool _translateEnabled = false;
+  bool _mangaEnabled = true;
+  bool _simulateReading = false;
   bool _boldText = false;
   bool _showStatusBar = true;
   bool _showTitle = true;
@@ -82,6 +85,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showNotification = _prefs?.getBool('show_notification') ?? true;
       _landscapeLock = _prefs?.getBool('landscape_lock') ?? false;
       _autoNextPage = _prefs?.getBool('auto_next_page') ?? false;
+      _translateEnabled = _prefs?.getBool('translate_enabled') ?? false;
+      _mangaEnabled = _prefs?.getBool('manga_enabled') ?? true;
+      _simulateReading = _prefs?.getBool('simulate_reading') ?? false;
       _boldText = _prefs?.getBool('bold_text') ?? false;
       _showStatusBar = _prefs?.getBool('show_status_bar') ?? true;
       _showTitle = _prefs?.getBool('show_title') ?? true;
@@ -392,15 +398,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSectionHeader('翻译设置'),
           SwitchListTile(
             title: const Text('启用翻译'),
-            value: false,
-            onChanged: (v) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? '翻译已启用' : '翻译已关闭'))),
+            value: _translateEnabled,
+            onChanged: (v) async { await _prefs?.setBool('translate_enabled', v); setState(() => _translateEnabled = v); },
           ),
           ListTile(
             leading: const Icon(Icons.translate_outlined),
             title: const Text('翻译引擎'),
             subtitle: const Text('选择翻译服务'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TranslateConfigScreen())),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TranslationScreen())),
           ),
 
           const Divider(),
@@ -410,14 +416,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: const Text('漫画阅读'),
             subtitle: const Text('启用漫画阅读模式'),
-            value: true,
-            onChanged: (v) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? '漫画阅读已启用' : '漫画阅读已关闭'))),
+            value: _mangaEnabled,
+            onChanged: (v) async { await _prefs?.setBool('manga_enabled', v); setState(() => _mangaEnabled = v); },
           ),
           SwitchListTile(
             title: const Text('模拟阅读'),
             subtitle: const Text('自动模拟翻页阅读'),
-            value: false,
-            onChanged: (v) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? '模拟阅读已启用' : '模拟阅读已关闭'))),
+            value: _simulateReading,
+            onChanged: (v) async { await _prefs?.setBool('simulate_reading', v); setState(() => _simulateReading = v); },
           ),
 
           const Divider(),
@@ -450,21 +456,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('本地备份'),
             subtitle: const Text('备份到本地文件'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showBackupDialog(),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.restore),
             title: const Text('本地恢复'),
             subtitle: const Text('从本地文件恢复'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showRestoreDialog(),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.cloud),
             title: const Text('WebDAV备份'),
             subtitle: const Text('同步到WebDAV服务器'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showWebDavDialog(),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.file_download_outlined),
@@ -486,7 +492,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('清理缓存'),
             subtitle: Text('当前缓存: $_cacheSize'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showCacheDialog(),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CacheManageScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.download_done),
@@ -631,68 +637,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ));
   }
 
-  void _showBackupDialog() {
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: const Text('本地备份'),
-      content: const Column(mainAxisSize: MainAxisSize.min, children: [
-        SwitchListTile(title: Text('备份书籍'), value: true, onChanged: null),
-        SwitchListTile(title: Text('备份书源'), value: true, onChanged: null),
-        SwitchListTile(title: Text('备份阅读记录'), value: true, onChanged: null),
-        SwitchListTile(title: Text('备份书签'), value: true, onChanged: null),
-        SwitchListTile(title: Text('备份设置'), value: true, onChanged: null),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-        FilledButton(onPressed: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('备份完成'))); }, child: const Text('开始备份')),
-      ],
-    ));
-  }
 
-  void _showRestoreDialog() {
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: const Text('本地恢复'),
-      content: const Text('选择备份文件进行恢复'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-        FilledButton(onPressed: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('恢复完成'))); }, child: const Text('选择文件')),
-      ],
-    ));
-  }
 
-  void _showWebDavDialog() {
-    final urlController = TextEditingController(text: 'https://dav.jianguoyun.com/dav/');
-    final userController = TextEditingController();
-    final passController = TextEditingController();
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: const Text('WebDAV设置'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: urlController, decoration: const InputDecoration(labelText: '服务器地址')),
-        const SizedBox(height: 8),
-        TextField(controller: userController, decoration: const InputDecoration(labelText: '用户名')),
-        const SizedBox(height: 8),
-        TextField(controller: passController, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-        FilledButton(onPressed: () { _saveSetting('webdav_url', urlController.text); _saveSetting('webdav_user', userController.text); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('WebDAV设置已保存'))); }, child: const Text('保存')),
-      ],
-    ));
-  }
 
-  void _showCacheDialog() {
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: const Text('清理缓存'),
-      content: const Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(leading: Icon(Icons.book), title: Text('书籍缓存'), subtitle: Text('0 MB')),
-        ListTile(leading: Icon(Icons.image), title: Text('封面缓存'), subtitle: Text('0 MB')),
-        ListTile(leading: Icon(Icons.web), title: Text('网络缓存'), subtitle: Text('0 MB')),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-        FilledButton(onPressed: () { Navigator.pop(context); setState(() => _cacheSize = '0 MB'); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清理'))); }, child: const Text('全部清理')),
-      ],
-    ));
-  }
 
   void _showDownloadManager() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const DownloadManageScreen()));
