@@ -35,7 +35,7 @@ class ThemeManageScreen extends StatefulWidget {
 }
 
 class _ThemeManageScreenState extends State<ThemeManageScreen> {
-  static const _builtin = [
+  static final _builtin = [
     CustomTheme(id: 'default', name: '默认主题', primaryColor: 0xFF6750A4, secondaryColor: 0xFF625B71, backgroundColor: 0xFFFFFBFE, surfaceColor: 0xFFFFFBFE),
     CustomTheme(id: 'blue', name: '蓝色主题', primaryColor: 0xFF1976D2, secondaryColor: 0xFF0288D1, backgroundColor: 0xFFF5F9FF, surfaceColor: 0xFFFFFFFF),
     CustomTheme(id: 'green', name: '绿色主题', primaryColor: 0xFF2E7D32, secondaryColor: 0xFF00796B, backgroundColor: 0xFFF1F8E9, surfaceColor: 0xFFFFFFFF),
