@@ -42,7 +42,42 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 
   Future<void> _loadChapters() async {
     _chapters = await _db.getChapters(widget.book.name, widget.book.author);
+    if (mounted) setState(() {});
+    // 本地无目录时自动联网获取（搜索结果首次进入的场景）
+    if (_chapters.isEmpty && !widget.book.local) {
+      await _fetchTocFromNetwork();
+    }
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _fetchTocFromNetwork() async {
+    try {
+      final sources = await _db.getAllSources(enabled: true);
+      final source = sources.where((s) => s.bookSourceUrl == widget.book.origin).firstOrNull;
+      if (source == null) return;
+      final engine = BookSourceEngine();
+      var noteUrl = widget.book.noteUrl;
+      // 没有目录地址时先用书籍详情规则补全
+      if ((noteUrl == null || noteUrl.isEmpty) && (widget.book.bookUrl ?? '').isNotEmpty) {
+        final info = await engine.getBookInfo(source, widget.book.bookUrl!);
+        if (info != null) {
+          noteUrl = info.noteUrl ?? noteUrl;
+          widget.book.noteUrl = noteUrl;
+          if ((info.intro ?? '').isNotEmpty) widget.book.intro = info.intro;
+          await _db.updateBook(widget.book);
+        }
+      }
+      if (noteUrl != null && noteUrl.isNotEmpty) {
+        final chapters = await engine.getToc(source, noteUrl);
+        if (chapters.isNotEmpty) {
+          await _db.saveChapters(widget.book.name, widget.book.author, chapters);
+          _chapters = chapters;
+          widget.book.lastChapter = chapters.last.title;
+          widget.book.lastChapterIndex = chapters.length - 1;
+          await _db.updateBook(widget.book);
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadReadProgress() async {
