@@ -14,6 +14,9 @@ class TtsService {
   String? _language;
   String? _engine;
   List<String> _chapters = [];
+  List<BookChapter> _rawChapters = [];
+  /// 按需加载某章正文（网络书未缓存时使用）
+  Future<String?> Function(int index)? contentLoader;
   int _currentIndex = 0;
   Function(String)? onProgress;
   Function()? onComplete;
@@ -62,8 +65,9 @@ class TtsService {
 
   /// 设置朗读内容
   void setChapters(List<BookChapter> chapters, {int startIndex = 0}) {
+    _rawChapters = chapters;
     _chapters = chapters.map((c) => c.content ?? c.title).where((c) => c.isNotEmpty).toList();
-    _currentIndex = startIndex.clamp(0, _chapters.length - 1);
+    _currentIndex = startIndex.clamp(0, (_chapters.isEmpty ? 0 : _chapters.length - 1));
   }
 
   /// 开始朗读
@@ -77,9 +81,20 @@ class TtsService {
   Future<void> _speakCurrent() async {
     if (_currentIndex >= _chapters.length) return;
     _isPlaying = true;
+    var text = _chapters[_currentIndex];
+    // 网络书未缓存正文（当前仅为标题）时按需拉取
+    if (contentLoader != null && _currentIndex < _rawChapters.length) {
+      final raw = _rawChapters[_currentIndex];
+      if ((raw.content == null || raw.content!.isEmpty) && text == raw.title) {
+        try {
+          final loaded = await contentLoader!(_currentIndex);
+          if (loaded != null && loaded.isNotEmpty) { text = loaded; _chapters[_currentIndex] = loaded; }
+        } catch (_) {}
+      }
+    }
     try {
       await _flutterTts.stop();
-      await _flutterTts.speak(_chapters[_currentIndex]);
+      await _flutterTts.speak(text);
     } catch (e) {
       onError?.call('朗读失败: $e');
     }
