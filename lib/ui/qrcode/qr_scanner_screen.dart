@@ -47,7 +47,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         MobileScanner(controller: _controller, onDetect: _onDetect),
         // 取景框
         Container(width: 240, height: 240,
-          decoration: BoxDecoration(border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 3), borderRadius: BorderRadius.circular(12))),
+          decoration: BoxDecoration(border: Border.all(color: Colors.white.withOpacity(0.8), width: 3), borderRadius: BorderRadius.circular(12))),
         Positioned(bottom: 48, child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
