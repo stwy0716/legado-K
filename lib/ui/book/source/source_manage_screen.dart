@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:legado_md3/help/source/source_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:legado_md3/ui/qrcode/qr_scanner_screen.dart';
 import 'package:flutter/services.dart';
@@ -470,7 +471,8 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
         break;
       case 'check':
         Navigator.pop(context);
-        _validateSources();
+        final sel = _sources.where((s) => _selectedIds.contains(s.bookSourceUrl)).toList();
+        _validateSources(sel.isNotEmpty ? sel : null);
         return;
       case 'invert':
         final all = _filteredSources.map((s) => s.bookSourceUrl).toSet();
@@ -691,30 +693,48 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
     );
   }
 
-  Future<void> _validateSources() async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('开始校验书源...')));
-    final sources = await _db.getAllSources();
-    int valid = 0;
-    int invalid = 0;
-    final client = HttpClient();
-    for (final source in sources) {
-      try {
-        final uri = Uri.parse(source.bookSourceUrl);
-        final request = await client.getUrl(uri).timeout(const Duration(seconds: 5));
-        final response = await request.close();
-        if (response.statusCode == 200) {
-          valid++;
-        } else {
-          invalid++;
-        }
-      } catch (e) {
-        invalid++;
+  Future<void> _validateSources([List<BookSource>? targets]) async {
+    final sources = targets ?? await _db.getAllSources();
+    if (sources.isEmpty) return;
+    final engine = BookSourceEngine();
+    int valid = 0, invalid = 0, done = 0;
+    showDialog(context: context, barrierDismissible: false, builder: (c) => StatefulBuilder(builder: (c, setS) {
+      void upd() { if (c.mounted) setS(() {}); }
+      upd();
+      return AlertDialog(title: const Text('书源校验'), content: Column(mainAxisSize: MainAxisSize.min, children: [
+        LinearProgressIndicator(value: sources.isEmpty ? 0 : done / sources.length),
+        const SizedBox(height: 12),
+        Text('进度 $done/${sources.length}  有效$valid 无效$invalid'),
+      ]), actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('后台运行'))]);
+    }));
+    const concurrency = 6;
+    int cursor = 0;
+    Future<void> worker() async {
+      while (cursor < sources.length) {
+        final s = sources[cursor++];
+        try {
+          // 用一次真实搜索判断规则是否可用（搜索地址缺失则探测根地址）
+          bool ok = false;
+          if ((s.searchUrl ?? '').isNotEmpty) {
+            final r = await engine.search(s, '测试', page: 1).timeout(const Duration(seconds: 12), onTimeout: () => []);
+            ok = true; // 能正常返回（即使空结果）说明规则链路通
+            if (r.isEmpty) ok = true;
+          } else {
+            final client = HttpClient();
+            try {
+              final req = await client.getUrl(Uri.parse(s.bookSourceUrl)).timeout(const Duration(seconds: 8));
+              final resp = await req.close().timeout(const Duration(seconds: 8));
+              ok = resp.statusCode < 400;
+            } finally { client.close(); }
+          }
+          ok ? valid++ : invalid++;
+        } catch (_) { invalid++; }
+        done++;
+        if (mounted) setState(() {});
       }
     }
-    client.close();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('校验完成: 有效$valid个, 无效$invalid个')));
-    }
+    await Future.wait(List.generate(concurrency.clamp(1, sources.length), (_) => worker()));
+    if (mounted) { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('校验完成: 有效$valid个, 无效$invalid个'))); }
   }
 
   void _showSourceOptions(BookSource source) {
