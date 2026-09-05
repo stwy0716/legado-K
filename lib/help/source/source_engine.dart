@@ -68,15 +68,23 @@ class BookSourceEngine {
 
   /// 解析URL和选项（原版格式：url,{options}）
   Map<String, dynamic> _parseUrlWithOptions(String urlStr) {
-    String url = urlStr;
+    String url = urlStr.trim();
     Map<String, dynamic> options = {};
-    final commaIndex = urlStr.indexOf(',{');
-    if (commaIndex > 0) {
-      url = urlStr.substring(0, commaIndex);
-      final optionsStr = urlStr.substring(commaIndex + 1);
-      try {
-        options = jsonDecode(optionsStr);
-      } catch (_) {}
+    // 1) ,{json options}
+    final commaJson = url.indexOf(',{');
+    if (commaJson > 0) {
+      final optStr = url.substring(commaJson + 1);
+      url = url.substring(0, commaJson);
+      try { options = jsonDecode(optStr) as Map<String, dynamic>; } catch (_) {}
+      return {'url': url, 'options': options};
+    }
+    // 2) ,POST:body / ,GET 简写
+    final m = RegExp(r'^(.+?),(POST|GET|PUT|DELETE)(?::(.*))?$', caseSensitive: false).firstMatch(url);
+    if (m != null) {
+      url = m.group(1)!.trim();
+      options['method'] = m.group(2)!.toUpperCase();
+      final b = m.group(3);
+      if (b != null && b.isNotEmpty) options['body'] = b;
     }
     return {'url': url, 'options': options};
   }
@@ -92,19 +100,23 @@ class BookSourceEngine {
       // 需要baseUrl，这里简化处理
     }
 
-    final method = (opts['method'] ?? 'GET').toString().toUpperCase();
-    final charset = opts['charset'] ?? 'utf-8';
+    final method = (opts['method'] ?? options?['method'] ?? 'GET').toString().toUpperCase();
+    // headers 兼容 JSON 字符串 / Map
+    Map<String, dynamic>? headers;
+    final rawHeaders = opts['headers'] ?? options?['headers'];
+    if (rawHeaders is Map) {
+      headers = Map<String, dynamic>.from(rawHeaders);
+    } else if (rawHeaders is String && rawHeaders.trim().isNotEmpty) {
+      try { headers = Map<String, dynamic>.from(jsonDecode(rawHeaders)); } catch (_) {}
+    }
+    headers ??= {};
+    headers.putIfAbsent('User-Agent', () => 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36');
 
-    Options dioOptions = Options(
-      method: method,
-      headers: opts['headers'] != null
-          ? Map<String, dynamic>.from(jsonDecode(opts['headers']))
-          : null,
-      responseType: ResponseType.plain,
-    );
+    final dioOptions = Options(method: method, headers: headers, responseType: ResponseType.plain,
+      followRedirects: true, validateStatus: (s) => s != null && s < 400);
 
     if (method == 'POST') {
-      final postBody = body ?? opts['body'] ?? '';
+      final postBody = body ?? opts['body'] ?? options?['body'] ?? '';
       final response = await _dio.post(finalUrl, data: postBody, options: dioOptions);
       return response.data.toString();
     } else {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:collection/collection.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/data/model/search_book.dart';
@@ -82,17 +83,24 @@ class _SearchScreenState extends State<SearchScreen> {
         ? sources
         : sources.where((s) => _selectedSources.contains(s.bookSourceUrl)).toList();
 
-    // 并发搜索所有启用书源，结果到达即刷新
-    final futures = selectedSources.map((source) async {
-      try {
-        final results = await _engine.search(source, keyword);
-        if (mounted && results.isNotEmpty) {
-          setState(() => _results.addAll(results));
-        }
-      } catch (_) {}
-      if (mounted) setState(() => _searchedSources++);
-    });
-    await Future.wait(futures);
+    // 并发池搜索所有启用书源（限制同时 8 个，避免源过多时连接耗尽），结果到达即刷新
+    const concurrency = 8;
+    int cursor = 0;
+    Future<void> worker() async {
+      while (true) {
+        final i = cursor++;
+        if (i >= selectedSources.length) return;
+        final source = selectedSources[i];
+        try {
+          final results = await _engine.search(source, keyword).timeout(const Duration(seconds: 15), onTimeout: () => []);
+          if (mounted && results.isNotEmpty) {
+            setState(() => _results.addAll(results));
+          }
+        } catch (_) {}
+        if (mounted) setState(() => _searchedSources++);
+      }
+    }
+    await Future.wait(List.generate(concurrency.clamp(1, selectedSources.isEmpty ? 1 : selectedSources.length), (_) => worker()));
 
     if (mounted) setState(() => _isSearching = false);
   }
@@ -106,7 +114,9 @@ class _SearchScreenState extends State<SearchScreen> {
       intro: book.intro,
       kind: book.kind,
       origin: book.origin,
+      originName: book.originName,
       noteUrl: book.noteUrl,
+      bookUrl: book.bookUrl,
       lastChapter: book.lastChapter,
       local: false,
       lastCheckTime: DateTime.now().millisecondsSinceEpoch,
@@ -250,42 +260,69 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              Text('共找到 ${_results.length} 条结果', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('共找到 ${_results.length} 条', style: const TextStyle(fontSize: 12, color: Colors.grey)),
               const Spacer(),
-              Text('已搜索 $_searchedSources/$_totalSources 个书源', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('$_searchedSources/$_totalSources 源', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                icon: Icon(_groupBySource ? Icons.view_agenda : Icons.sort, color: Theme.of(context).colorScheme.primary),
+                tooltip: _groupBySource ? '按时间排序' : '按书源分组',
+                onPressed: () => setState(() => _groupBySource = !_groupBySource),
+              ),
             ],
           ),
         ),
-        Expanded(
-          child: ListView.separated(
-            itemCount: _results.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final book = _results[index];
-              return ListTile(
-                leading: book.coverUrl != null && book.coverUrl!.isNotEmpty
-                    ? ClipRRect(borderRadius: BorderRadius.circular(4), child: Image.network(book.coverUrl!, width: 50, height: 70, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildDefaultCover(book.name)))
-                    : _buildDefaultCover(book.name),
-                title: Text(book.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${book.author} · ${book.kind ?? ''}', maxLines: 1, style: const TextStyle(fontSize: 12)),
-                    const SizedBox(height: 2),
-                    Text(book.lastChapter ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary)),
-                    if (book.origin != null) Text('来源: ${book.origin}', maxLines: 1, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
-                ),
-                trailing: IconButton(icon: const Icon(Icons.add), onPressed: () => _addToShelf(book), tooltip: '加入书架'),
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))),
-                onLongPress: () => _showResultMenu(book),
-              );
-            },
-          ),
-        ),
+        Expanded(child: _groupBySource ? _buildGroupedList() : _buildFlatList()),
       ],
     );
   }
+
+  Widget _buildFlatList() => ListView.separated(
+    itemCount: _results.length,
+    separatorBuilder: (_, __) => const Divider(height: 1),
+    itemBuilder: (c, i) => _buildResultTile(_results[i]),
+  );
+
+  Widget _buildGroupedList() {
+    final groups = groupBy(_results, (SearchBook b) => b.originName ?? b.origin ?? '未知来源');
+    final entries = groups.entries.toList();
+    return ListView.builder(
+      itemCount: entries.length,
+      itemBuilder: (c, gi) {
+        final e = entries[gi];
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: double.infinity, color: Theme.of(c).colorScheme.surfaceContainerHighest,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Text('${e.key} (${e.value.length})', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(c).colorScheme.primary)),
+          ),
+          ...e.value.map(_buildResultTile),
+          const Divider(height: 1),
+        ]);
+      },
+    );
+  }
+
+  Widget _buildResultTile(SearchBook book) => ListTile(
+    leading: book.coverUrl != null && book.coverUrl!.isNotEmpty
+        ? ClipRRect(borderRadius: BorderRadius.circular(4), child: Image.network(book.coverUrl!, width: 50, height: 70, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildDefaultCover(book.name)))
+        : _buildDefaultCover(book.name),
+    title: Text(book.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500)),
+    subtitle: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('${book.author} · ${book.kind ?? ''}', maxLines: 1, style: const TextStyle(fontSize: 12)),
+        const SizedBox(height: 2),
+        Text(book.lastChapter ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary)),
+        if ((book.originName ?? '').isNotEmpty) Text('来源: ${book.originName}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
+    ),
+    trailing: IconButton(icon: const Icon(Icons.add), onPressed: () => _addToShelf(book), tooltip: '加入书架'),
+    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))),
+    onLongPress: () => _showResultMenu(book),
+  );
 
   Widget _buildDefaultCover(String name) {
     final colors = [Colors.blueGrey, Colors.brown, Colors.teal, Colors.indigo, Colors.deepOrange, Colors.purple];
