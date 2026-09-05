@@ -14,6 +14,7 @@ class _ReadingStatsScreenState extends State<ReadingStatsScreen> with SingleTick
   int _todayDuration = 0;
   int _totalDuration = 0;
   int _readingDays = 0;
+  int _continuousDays = 0;
   Map<String, int> _recentStats = {};
   bool _isLoading = true;
 
@@ -35,6 +36,7 @@ class _ReadingStatsScreenState extends State<ReadingStatsScreen> with SingleTick
     _todayDuration = await _recordService.getTodayDuration();
     _totalDuration = await _recordService.getTotalDuration();
     _readingDays = await _recordService.getReadingDays();
+    _continuousDays = await _recordService.getContinuousDays();
     _recentStats = await _recordService.getRecentStats(30);
     if (mounted) setState(() => _isLoading = false);
   }
@@ -80,7 +82,7 @@ class _ReadingStatsScreenState extends State<ReadingStatsScreen> with SingleTick
           children: [
             Expanded(child: _buildStatCard('阅读天数', '$_readingDays 天', Icons.calendar_today)),
             const SizedBox(width: 12),
-            Expanded(child: _buildStatCard('连续阅读', '计算中', Icons.local_fire_department)),
+            Expanded(child: _buildStatCard('连续阅读', '$_continuousDays 天', Icons.local_fire_department)),
           ],
         ),
         const SizedBox(height: 24),
