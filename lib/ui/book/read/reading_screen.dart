@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/data/model/bookmark.dart';
@@ -56,6 +57,8 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   bool _isLoadingChapter = false;
   late AnimationController _menuController;
   final PageController _pageController = PageController();
+  Timer? _autoReadTimer;
+  bool _autoReadOn = false;
   int _currentPage = 0;
   List<String> _pages = [];
 
@@ -75,6 +78,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
 
   @override
   void dispose() {
+    _autoReadTimer?.cancel();
     _menuController.dispose();
     _pageController.dispose();
     _recordService.endSession(
@@ -220,6 +224,33 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
 
   void _prevChapter() {
     if (_currentChapterIndex > 0) _loadChapterContent(_currentChapterIndex - 1);
+  }
+
+  void _startAutoRead() {
+    final cfg = context.read<ReadProvider>().config;
+    final secs = cfg.autoNextPageSpeed < 1 ? 3 : cfg.autoNextPageSpeed;
+    _autoReadTimer?.cancel();
+    _autoReadTimer = Timer.periodic(Duration(seconds: secs), (_) {
+      if (!mounted) { _autoReadTimer?.cancel(); return; }
+      // 读到最后一章最后一页则停止
+      if (_currentChapterIndex >= _chapters.length - 1 && _currentPage >= _pages.length - 1) {
+        _stopAutoRead();
+      } else {
+        _nextPage();
+      }
+    });
+    setState(() => _autoReadOn = true);
+  }
+
+  void _stopAutoRead() {
+    _autoReadTimer?.cancel();
+    _autoReadTimer = null;
+    if (mounted) setState(() => _autoReadOn = false);
+  }
+
+  void _toggleAutoRead() {
+    if (_autoReadOn) { _stopAutoRead(); }
+    else { _startAutoRead(); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('自动阅读已开启，再次点击菜单可关闭'), duration: Duration(seconds: 1))); }
   }
 
   @override
@@ -613,6 +644,11 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
               leading: const Icon(Icons.translate),
               title: const Text('翻译'),
               onTap: () { Navigator.pop(context); _showTranslateDialog(); },
+            ),
+            ListTile(
+              leading: Icon(_autoReadOn ? Icons.pause_circle : Icons.play_circle_outline),
+              title: Text(_autoReadOn ? '停止自动阅读' : '自动阅读'),
+              onTap: () { Navigator.pop(context); _toggleAutoRead(); },
             ),
             ListTile(
               leading: const Icon(Icons.swap_horiz),
