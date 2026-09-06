@@ -8,6 +8,8 @@ import 'package:collection/collection.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/book_marking.dart';
+import 'package:legado_md3/data/model/dict_rule.dart';
+import 'package:legado_md3/ui/browser/browser_screen.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/ui/config/txt_toc_rule_screen.dart';
 import 'package:legado_md3/data/model/read_config.dart';
@@ -270,6 +272,16 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已添加划线，可在 我的-书籍标记 查看'), duration: Duration(seconds: 2)));
   }
 
+  Future<void> _dictLookup(String word) async {
+    final w = word.trim();
+    if (w.isEmpty) return;
+    final rules = await _db.getDictRules();
+    final rule = rules.firstWhere((r) => r.enabled == 1 && r.url.contains('{word}'), orElse: () => DictRule(name: '在线词典', url: 'https://www.baidu.com/s?wd={word}'));
+    final url = rule.url.replaceAll('{word}', Uri.encodeComponent(w));
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => BrowserScreen(url: url, title: '${rule.name}: $w')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final readProvider = context.watch<ReadProvider>();
@@ -375,6 +387,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                   _addMarking(text);
                 }, child: const Padding(padding: EdgeInsets.all(12), child: Text('划线'))),
                 InkWell(onTap: () { state.copySelection(SelectionChangedCause.toolbar); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1))); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('复制'))),
+                InkWell(onTap: () { final w = state.currentTextSelection.textInside(_pages[index]); Navigator.pop(context); _dictLookup(w); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('查词'))),
               ],
             ),
             child: Text(
