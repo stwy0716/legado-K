@@ -32,6 +32,29 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- 用本应用打开本地书籍 txt/epub -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content"/>
+                <data android:scheme="file"/>
+                <data android:mimeType="text/plain"/>
+                <data android:mimeType="application/epub+zip"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content"/>
+                <data android:scheme="file"/>
+                <data android:host="*"/>
+                <data android:pathPattern=".*\\.txt"/>
+                <data android:pathPattern=".*\\..*\\.txt"/>
+                <data android:pathPattern=".*\\.epub"/>
+                <data android:pathPattern=".*\\..*\\.epub"/>
+            </intent-filter>
         </activity>
         <meta-data
             android:name="flutterEmbedding"

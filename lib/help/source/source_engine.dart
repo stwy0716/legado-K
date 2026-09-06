@@ -8,6 +8,7 @@ import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/replace_rule.dart';
 import 'package:legado_md3/help/source/replace_rule_service.dart';
+import 'package:enough_convert/enough_convert.dart';
 
 /// 规则类型
 enum _RuleType { css, xpath, json, js, regex, defaultRule, none }
@@ -27,6 +28,10 @@ class BookSourceEngine {
   ));
 
   final ReplaceRuleService _replaceService = ReplaceRuleService();
+
+  /// 强制编码（阅读页可切换），null 时自动探测
+  String? forcedCharset;
+  void setCharset(String? cs) => forcedCharset = cs;
 
   /// 解析规则类型
   _RuleType _parseRuleType(String rule) {
@@ -112,16 +117,44 @@ class BookSourceEngine {
     headers ??= {};
     headers.putIfAbsent('User-Agent', () => 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36');
 
-    final dioOptions = Options(method: method, headers: headers, responseType: ResponseType.plain,
+    final dioOptions = Options(method: method, headers: headers, responseType: ResponseType.bytes,
       followRedirects: true, validateStatus: (s) => s != null && s < 400);
 
+    Response<List<int>> response;
     if (method == 'POST') {
       final postBody = body ?? opts['body'] ?? options?['body'] ?? '';
-      final response = await _dio.post(finalUrl, data: postBody, options: dioOptions);
-      return response.data.toString();
+      response = await _dio.post(finalUrl, data: postBody, options: dioOptions);
     } else {
-      final response = await _dio.get(finalUrl, options: dioOptions);
-      return response.data.toString();
+      response = await _dio.get(finalUrl, options: dioOptions);
+    }
+    return _decodeBytes(response.data ?? [], response.headers.map);
+  }
+
+  /// 按编码解码字节：强制编码 > Content-Type > HTML meta > 默认 utf-8（失败回退 GBK）
+  String _decodeBytes(List<int> bytes, Map<String, List<String>> respHeaders) {
+    String? cs = forcedCharset;
+    // 1) Content-Type
+    final ct = (respHeaders['content-type'] ?? respHeaders['Content-Type'] ?? []).join(';').toLowerCase();
+    final m = RegExp(r'charset=([a-z0-9\-]+)').firstMatch(ct);
+    if (m != null) cs ??= m.group(1);
+    // 2) HTML meta（用 ascii/latin1 先扫前 2KB）
+    if (cs == null) {
+      final head = String.fromCharCodes(bytes.take(2048).map((b) => b & 0xff)).toLowerCase();
+      final mm = RegExp(r'charset=["\']?([a-z0-9\-]+)').firstMatch(head);
+      if (mm != null) cs = mm.group(1);
+    }
+    cs = cs?.toLowerCase();
+    try {
+      if (cs == 'gbk' || cs == 'gb2312' || cs == 'gb18030') return GbkCodec().decode(bytes);
+      if (cs == 'big5' || cs == 'big-5') return Big5Codec().decode(bytes);
+      if (cs == 'latin1' || cs == 'iso-8859-1') return latin1.decode(bytes);
+      // utf-8 / 默认
+      return utf8.decode(bytes, allowMalformed: false);
+    } catch (_) {
+      try { return utf8.decode(bytes, allowMalformed: true); }
+      catch (_) {
+        try { return GbkCodec().decode(bytes); } catch (_) { return latin1.decode(bytes); }
+      }
     }
   }
 

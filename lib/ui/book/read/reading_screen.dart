@@ -70,6 +70,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _loadClickActions();
+    _restoreCharset();
     _menuController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -91,6 +92,12 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     );
     _ttsService.dispose();
     super.dispose();
+  }
+
+  Future<void> _restoreCharset() async {
+    final p = await SharedPreferences.getInstance();
+    final cs = p.getString('force_charset');
+    if (cs != null && cs != 'UTF-8') _engine.setCharset(cs.toLowerCase());
   }
 
   Future<void> _loadData() async {
@@ -885,10 +892,14 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     const charsets = ['UTF-8', 'GBK', 'GB2312', 'GB18030', 'Big5', 'ISO-8859-1'];
     showModalBottomSheet(context: context, builder: (c) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
       const Padding(padding: EdgeInsets.all(16), child: Text('选择编码', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-      ...charsets.map((cs) => ListTile(title: Text(cs), onTap: () {
+      ...charsets.map((cs) => ListTile(title: Text(cs), onTap: () async {
         Navigator.pop(c);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已选择 $cs，重新加载章节')));
+        _engine.setCharset(cs == 'UTF-8' ? null : cs.toLowerCase());
+        final p = await SharedPreferences.getInstance();
+        await p.setString('force_charset', cs);
+        context.read<ReadProvider>().updateConfig((c) => c.charset = cs);
         _loadChapterContent(_currentChapterIndex);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已切换编码 $cs 并重新加载')));
       })),
     ])));
   }

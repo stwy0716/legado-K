@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:legado_md3/help/storage/import_book_service.dart';
 import 'package:provider/provider.dart';
 import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/constant/app_theme.dart';
@@ -23,6 +25,8 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0; // 默认书架
   final PageController _pageController = PageController(initialPage: 0);
+  static const _fileChannel = MethodChannel('legado/file_intent');
+  final ImportBookService _importService = ImportBookService();
 
   final List<Widget> _screens = const [
     BookshelfScreen(),
@@ -36,7 +40,31 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<BookProvider>(context, listen: false).loadBooks();
+      _checkOpenedFile();
     });
+    _fileChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onFileOpened' && call.arguments is String) {
+        _importOpened(call.arguments as String);
+      }
+    });
+  }
+
+  Future<void> _checkOpenedFile() async {
+    try {
+      final path = await _fileChannel.invokeMethod<String>('getInitialFile');
+      if (path != null && path.isNotEmpty) _importOpened(path);
+    } catch (_) {}
+  }
+
+  Future<void> _importOpened(String path) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await _importService.importPath(path);
+      messenger.showSnackBar(SnackBar(content: Text('已导入《${res.book.name}》，共 ${res.chapterCount} 章')));
+      if (mounted) Provider.of<BookProvider>(context, listen: false).loadBooks();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('导入失败: $e')));
+    }
   }
 
   @override
