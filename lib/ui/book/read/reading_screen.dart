@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:legado_md3/data/model/book.dart';
+import 'package:legado_md3/data/model/book_marking.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/ui/config/txt_toc_rule_screen.dart';
 import 'package:legado_md3/data/model/read_config.dart';
@@ -253,6 +254,22 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     else { _startAutoRead(); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('自动阅读已开启，再次点击菜单可关闭'), duration: Duration(seconds: 1))); }
   }
 
+  Future<void> _addMarking(String text) async {
+    final t = text.trim();
+    if (t.isEmpty) return;
+    final marking = BookMarking(
+      bookName: widget.book.name,
+      author: widget.book.author,
+      chapterIndex: _currentChapterIndex,
+      chapterTitle: _chapters.isNotEmpty ? _chapters[_currentChapterIndex].title : '',
+      pagePos: _currentPage,
+      content: t,
+      createTime: DateTime.now().millisecondsSinceEpoch,
+    );
+    await _db.insertBookMarking(marking);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已添加划线，可在 我的-书籍标记 查看'), duration: Duration(seconds: 2)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final readProvider = context.watch<ReadProvider>();
@@ -346,20 +363,35 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
             config.paddingRight.toDouble(),
             config.paddingBottom.toDouble(),
           ),
-          child: Text(
-            _pages[index],
-            style: TextStyle(
-              fontSize: config.textSize.toDouble(),
-              color: Color(config.textColor),
-              height: config.lineSpacing * 0.5 + 1.0,
-              fontWeight: config.boldText ? FontWeight.bold : FontWeight.normal,
-              fontFamily: config.fontFamily,
+          child: SelectionArea(
+            contextMenuBuilder: (context, state) => AdaptiveTextSelectionToolbar(
+              anchors: state.contextMenuAnchors,
+              children: [
+                InkWell(onTap: () {
+                  final sel = state.currentTextSelection;
+                  final text = sel.textInside(_pages[index]);
+                  state.copySelection(SelectionChangedCause.toolbar);
+                  Navigator.pop(context);
+                  _addMarking(text);
+                }, child: const Padding(padding: EdgeInsets.all(12), child: Text('划线'))),
+                InkWell(onTap: () { state.copySelection(SelectionChangedCause.toolbar); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1))); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('复制'))),
+              ],
             ),
-            textAlign: config.textAlign == 1
-                ? TextAlign.center
-                : config.textAlign == 2
-                    ? TextAlign.justify
-                    : TextAlign.left,
+            child: Text(
+              _pages[index],
+              style: TextStyle(
+                fontSize: config.textSize.toDouble(),
+                color: Color(config.textColor),
+                height: config.lineSpacing * 0.5 + 1.0,
+                fontWeight: config.boldText ? FontWeight.bold : FontWeight.normal,
+                fontFamily: config.fontFamily,
+              ),
+              textAlign: config.textAlign == 1
+                  ? TextAlign.center
+                  : config.textAlign == 2
+                      ? TextAlign.justify
+                      : TextAlign.left,
+            ),
           ),
         );
       },
