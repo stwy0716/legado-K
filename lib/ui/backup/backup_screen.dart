@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:legado_md3/help/storage/webdav_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,12 +76,75 @@ class _BackupScreenState extends State<BackupScreen> {
       Row(children: [
         OutlinedButton(onPressed: () async { await _saveWebdav(); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('WebDAV配置已保存'))); }, child: const Text('保存配置')),
         const SizedBox(width: 8),
-        OutlinedButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('正在测试连接...'))), child: const Text('测试')),
+        OutlinedButton(onPressed: _testWebDav, child: const Text('测试')),
+        OutlinedButton(onPressed: _restoreFromWebDav, child: const Text('云端恢复')),
         const Spacer(),
-        FilledButton(onPressed: () async { await _saveWebdav(); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('开始上传到WebDAV...'))); }, child: const Text('上传')),
+        FilledButton(onPressed: _uploadWebDav, child: const Text('上传')),
       ]),
     ])),
   );
+  WebDavService _webdav() {
+    final s = WebDavService();
+    s.configure(baseUrl: _webdavUrl.text.trim(), username: _webdavUser.text.trim(), password: _webdavPass.text);
+    return s;
+  }
+
+  void _tip(String msg) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _testWebDav() async {
+    if (_webdavUrl.text.trim().isEmpty) { _tip('请先填写 WebDAV 地址'); return; }
+    await _saveWebdav();
+    _tip('正在测试连接...');
+    final ok = await _webdav().testConnection();
+    _tip(ok ? 'WebDAV 连接成功' : '连接失败，请检查地址/账号/密码');
+  }
+
+  Future<void> _uploadWebDav() async {
+    if (_webdavUrl.text.trim().isEmpty) { _tip('请先填写 WebDAV 地址'); return; }
+    await _saveWebdav();
+    setState(() => _isWorking = true);
+    try {
+      final data = await _backupService.createBackup(
+        includeBooks: _includeBooks, includeSources: _includeSources,
+        includeReplaceRules: _includeRules, includeReadRecords: _includeRecords,
+      );
+      final ts = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final ok = await _webdav().uploadBackup('backup_$ts.json', utf8.encode(jsonEncode(data)));
+      _tip(ok ? '已上传到 WebDAV' : '上传失败');
+    } catch (e) {
+      _tip('上传失败: $e');
+    }
+    if (mounted) setState(() => _isWorking = false);
+  }
+
+  Future<void> _restoreFromWebDav() async {
+    if (_webdavUrl.text.trim().isEmpty) { _tip('请先填写 WebDAV 地址'); return; }
+    final list = await _webdav().listBackups();
+    if (!mounted) return;
+    if (list.isEmpty) { _tip('云端没有备份文件'); return; }
+    final chosen = await showDialog<String>(context: context, builder: (d) => SimpleDialog(
+      title: const Text('选择云端备份'),
+      children: list.reversed.map((name) => SimpleDialogOption(child: Text(name), onPressed: () => Navigator.pop(d, name))).toList(),
+    ));
+    if (chosen == null) return;
+    setState(() => _isWorking = true);
+    try {
+      final bytes = await _webdav().downloadBackup(chosen);
+      if (bytes == null) { _tip('下载失败'); return; }
+      final dir = await getTemporaryDirectory();
+      final tmp = File('${dir.path}/webdav_restore.json');
+      await tmp.writeAsBytes(bytes);
+      final res = await _backupService.restoreFromFile(tmp.path);
+      _tip(res.summary);
+      await _loadBackupFiles();
+    } catch (e) {
+      _tip('恢复失败: $e');
+    }
+    if (mounted) setState(() => _isWorking = false);
+  }
+
   Future<void> _createBackup() async {
     setState(() => _isWorking = true);
     try {

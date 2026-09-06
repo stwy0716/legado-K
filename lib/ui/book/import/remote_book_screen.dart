@@ -1,6 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:legado_md3/help/storage/webdav_service.dart';
+import 'package:legado_md3/data/local/app_database.dart';
+import 'package:legado_md3/data/model/book.dart';
+import 'package:legado_md3/data/model/book_chapter.dart';
+import 'package:legado_md3/help/source/txt_parser.dart';
+import 'package:legado_md3/help/storage/epub_parser.dart';
 
 /// 远程书籍导入（WebDAV），对齐原版 import/remote/RemoteBookScreen
 class RemoteBookScreen extends StatefulWidget {
@@ -12,6 +19,8 @@ class RemoteBookScreen extends StatefulWidget {
 
 class _RemoteBookScreenState extends State<RemoteBookScreen> {
   final WebDavService _webDav = WebDavService();
+  final DatabaseService _db = DatabaseService();
+  final TxtParserService _parser = TxtParserService();
   List<String> _files = [];
   bool _loading = false;
   String? _error;
@@ -53,13 +62,45 @@ class _RemoteBookScreenState extends State<RemoteBookScreen> {
   }
 
   Future<void> _downloadAndImport(String file) async {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('下载 $file ...')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('下载并导入 $file ...')));
     try {
       final data = await _webDav.downloadBackup(file);
       if (data == null) throw Exception('下载为空');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('《$file》已下载，可在本地导入中打开')));
+      final dir = await getApplicationDocumentsDirectory();
+      final bookDir = Directory('${dir.path}/books');
+      if (!await bookDir.exists()) await bookDir.create(recursive: true);
+      final local = File('${bookDir.path}/$file');
+      await local.writeAsBytes(data);
+      final lower = file.toLowerCase();
+      Book book;
+      List<BookChapter> chapters;
+      if (lower.endsWith('.epub')) {
+        final parsed = await EpubParser.parse(local.path);
+        if (parsed == null) throw 'EPUB 解析失败';
+        book = parsed
+          ..origin = 'local' ..originName = '本地书籍'
+          ..noteUrl = 'local://${local.path}' ..bookUrl = 'local://${local.path}';
+        final toc = await EpubParser.parseToc(local.path);
+        chapters = <BookChapter>[];
+        for (final ch in toc) {
+          chapters.add(BookChapter(index: ch.index, title: ch.title, url: ch.url, isVolume: ch.isVolume, content: await EpubParser.parseChapterContent(local.path, ch.url)));
+        }
+        if (chapters.isEmpty) chapters = [BookChapter(index: 0, title: '正文', url: '', content: await EpubParser.parseChapterContent(local.path, '') ?? '')];
+        book.lastChapter = chapters.isNotEmpty ? chapters.last.title : null;
+      } else if (lower.endsWith('.txt')) {
+        final content = await local.readAsString();
+        final info = _parser.extractBookInfo(content, file);
+        chapters = _parser.parseChapters(content);
+        book = Book(name: info['name'] ?? file, author: info['author'] ?? '未知', intro: info['intro'], origin: 'local', originName: '本地书籍', noteUrl: 'local://${local.path}', bookUrl: 'local://${local.path}', type: 1, lastChapter: chapters.isNotEmpty ? chapters.last.title : null, wordCount: content.length);
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('《$file》已保存到 books 目录（该格式暂不支持解析）')));
+        return;
+      }
+      await _db.insertBook(book);
+      await _db.saveChapters(book.name, book.author, chapters);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('《${book.name}》导入成功，共 ${chapters.length} 章')));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('下载失败: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('导入失败: $e')));
     }
   }
 
