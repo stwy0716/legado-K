@@ -376,20 +376,25 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
             config.paddingBottom.toDouble(),
           ),
           child: SelectionArea(
-            contextMenuBuilder: (context, state) => AdaptiveTextSelectionToolbar(
-              anchors: state.contextMenuAnchors,
-              children: [
-                InkWell(onTap: () {
-                  final sel = state.currentTextSelection;
-                  final text = sel.textInside(_pages[index]);
-                  state.copySelection(SelectionChangedCause.toolbar);
-                  Navigator.pop(context);
-                  _addMarking(text);
-                }, child: const Padding(padding: EdgeInsets.all(12), child: Text('划线'))),
-                InkWell(onTap: () { state.copySelection(SelectionChangedCause.toolbar); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1))); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('复制'))),
-                InkWell(onTap: () { final w = state.currentTextSelection.textInside(_pages[index]); Navigator.pop(context); _dictLookup(w); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('查词'))),
-              ],
-            ),
+            contextMenuBuilder: (context, state) {
+              String selected() {
+                final sel = state.currentSelectable?.value.selection;
+                return sel == null ? '' : sel.textInside(_pages[index]);
+              }
+              return AdaptiveTextSelectionToolbar(
+                anchors: state.contextMenuAnchors,
+                children: [
+                  InkWell(onTap: () {
+                    final text = selected();
+                    state.copySelection(SelectionChangedCause.toolbar);
+                    Navigator.pop(context);
+                    _addMarking(text);
+                  }, child: const Padding(padding: EdgeInsets.all(12), child: Text('划线'))),
+                  InkWell(onTap: () { state.copySelection(SelectionChangedCause.toolbar); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1))); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('复制'))),
+                  InkWell(onTap: () { final w = selected(); Navigator.pop(context); _dictLookup(w); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('查词'))),
+                ],
+              );
+            },
             child: Text(
               _pages[index],
               style: TextStyle(
