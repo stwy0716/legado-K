@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:legado_md3/ui/book/read/config/click_action_config_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:legado_md3/di/book_provider.dart';
@@ -151,6 +153,16 @@ class _ReadingSettingsScreenState extends State<ReadingSettingsScreen> with Sing
         SwitchListTile(title: const Text('护眼模式'), value: config.eyeProtection, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.eyeProtection = v)),
         if (config.eyeProtection) ListTile(title: const Text('护眼强度'), trailing: Slider(value: config.eyeProtectionLevel.toDouble(), min: 0, max: 100, divisions: 20, label: '${config.eyeProtectionLevel}%', onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.eyeProtectionLevel = v.toInt()))),
         ListTile(title: const Text('背景颜色'), trailing: Icon(Icons.color_lens, color: Color(config.bgColor)), onTap: () => _showColorPicker((color) => context.read<ReadProvider>().updateConfig((c) => c.bgColor = color.value))),
+        ListTile(
+          title: const Text('背景图片'),
+          subtitle: Text(config.bgImage == null ? '未设置，使用背景颜色' : '已设置自定义背景图'),
+          trailing: config.bgImage == null ? const Icon(Icons.add_photo_alternate) : IconButton(icon: const Icon(Icons.clear), onPressed: () => context.read<ReadProvider>().updateConfig((c) => c.bgImage = null)),
+          onTap: () async {
+            final res = await FilePicker.platform.pickFiles(type: FileType.image);
+            final path = res?.files.single.path;
+            if (path != null) context.read<ReadProvider>().updateConfig((c) => c.bgImage = path);
+          },
+        ),
       ],
     );
   }

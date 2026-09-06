@@ -316,6 +316,8 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                 },
                 child: Stack(
                   children: [
+                    if (config.bgImage != null)
+                      Positioned.fill(child: Image.file(File(config.bgImage!), fit: BoxFit.cover)),
                     Column(
                       children: [
                         if (config.statusBarVisibility)
