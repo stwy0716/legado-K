@@ -288,9 +288,9 @@ class JsMiniEvaluator {
       if (ch == '(') { depth++; if (depth == 1) { buf.clear(); continue; } }
       if (ch == ')') {
         depth--;
-        if (depth == 0) { if (buf.trim().isNotEmpty) args.add(buf.trim()); return _Parens(args, i + 1); }
+        if (depth == 0) { if (buf.toString().trim().isNotEmpty) args.add(buf.toString().trim()); return _Parens(args, i + 1); }
       }
-      if (ch == ',' && depth == 1) { args.add(buf.trim()); buf.clear(); continue; }
+      if (ch == ',' && depth == 1) { args.add(buf.toString().trim()); buf.clear(); continue; }
       buf.write(ch);
     }
     return _Parens(args, s.length);

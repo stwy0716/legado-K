@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:legado_md3/ui/book/read/config/click_action_config_screen.dart';
+import 'package:legado_md3/ui/book/read/config/read_tool_config_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:legado_md3/di/book_provider.dart';
 
@@ -173,6 +174,9 @@ class _ReadingSettingsScreenState extends State<ReadingSettingsScreen> with Sing
     final config = context.watch<ReadProvider>().config;
     return ListView(
       children: [
+        ListTile(leading: const Icon(Icons.dashboard_customize), title: const Text('阅读菜单配置'), subtitle: const Text('底部工具栏 / 更多菜单 / 选择菜单的显示与排序'), trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReadToolConfigScreen()))),
+        const Divider(),
         SwitchListTile(title: const Text('保持屏幕常亮'), value: config.keepScreenOn, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.keepScreenOn = v)),
         SwitchListTile(title: const Text('点击显示菜单'), value: config.showMenuOnTap, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.showMenuOnTap = v)),
         SwitchListTile(title: const Text('长按选择文字'), value: config.longPressSelect, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.longPressSelect = v)),

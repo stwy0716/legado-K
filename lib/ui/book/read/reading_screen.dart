@@ -23,6 +23,8 @@ import 'package:legado_md3/help/readaloud/tts_service.dart';
 import 'package:legado_md3/help/readaloud/reading_record.dart';
 import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/ui/book/read/config/reading_settings_screen.dart';
+import 'package:legado_md3/ui/book/read/config/read_tool_config_screen.dart';
+import 'package:legado_md3/help/config/read_menu_config.dart';
 import 'package:legado_md3/ui/book/chapter/chapter_list_screen.dart';
 import 'package:legado_md3/ui/config/replace_rule_screen.dart';
 import 'package:legado_md3/ui/book/search/search_content_screen.dart';
@@ -65,12 +67,23 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   bool _autoReadOn = false;
   int _currentPage = 0;
   List<String> _pages = [];
+  List<String> _toolbarOrder = List.of(ReadMenuConfig.defaultToolBar);
+  List<String> _moreMenuOrder = List.of(ReadMenuConfig.defaultMoreMenu);
+  List<String> _selectMenuOrder = List.of(ReadMenuConfig.defaultSelectMenu);
+
+  Future<void> _loadMenuConfig() async {
+    final tb = await ReadMenuConfig.load(ReadMenuConfig.kToolBar, ReadMenuConfig.defaultToolBar);
+    final mm = await ReadMenuConfig.load(ReadMenuConfig.kMoreMenu, ReadMenuConfig.defaultMoreMenu);
+    final sm = await ReadMenuConfig.load(ReadMenuConfig.kSelectMenu, ReadMenuConfig.defaultSelectMenu);
+    if (mounted) setState(() { _toolbarOrder = tb; _moreMenuOrder = mm; _selectMenuOrder = sm; });
+  }
 
   @override
   void initState() {
     super.initState();
     _loadClickActions();
     _restoreCharset();
+    _loadMenuConfig();
     _menuController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -403,15 +416,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
               }
               return AdaptiveTextSelectionToolbar(
                 anchors: state.contextMenuAnchors,
-                children: [
-                  InkWell(onTap: () async {
-                    final text = await grab();
-                    if (context.mounted) Navigator.pop(context);
-                    _addMarking(text);
-                  }, child: const Padding(padding: EdgeInsets.all(12), child: Text('划线'))),
-                  InkWell(onTap: () { state.copySelection(SelectionChangedCause.toolbar); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1))); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('复制'))),
-                  InkWell(onTap: () async { final w = await grab(); if (context.mounted) Navigator.pop(context); _dictLookup(w); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('查词'))),
-                ],
+                children: _buildSelectMenuChildren(state, grab),
               );
             },
             child: Text(
@@ -658,17 +663,15 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                 },
               ),
             ),
-            // 底部操作按钮
+            // 底部操作按钮（显示与顺序可在「阅读菜单配置」中自定义）
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildBottomAction(Icons.font_download, '字体', () => _showFontPicker()),
-                  _buildBottomAction(Icons.animation, '翻页', () => _showPageAnimPicker()),
-                  _buildBottomAction(Icons.brightness_6, '亮度', () => _showBrightnessSlider()),
-                  _buildBottomAction(Icons.settings, '设置', () => _showReadingSettings()),
-                  _buildBottomAction(Icons.headphones, '朗读', () => _startTTS()),
+                  for (final key in _toolbarOrder)
+                    if (_toolAction(key) != null)
+                      _buildBottomAction(_toolAction(key)!.$1, _toolAction(key)!.$2, _toolAction(key)!.$3),
                 ],
               ),
             ),
@@ -676,6 +679,16 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
         ),
       ),
     );
+  }
+
+  (IconData, String, VoidCallback)? _toolAction(String key) {    switch (key) {
+      case 'font': return (Icons.font_download, '字体', () => _showFontPicker());
+      case 'pageanim': return (Icons.animation, '翻页', () => _showPageAnimPicker());
+      case 'brightness': return (Icons.brightness_6, '亮度', () => _showBrightnessSlider());
+      case 'settings': return (Icons.settings, '设置', () => _showReadingSettings());
+      case 'tts': return (Icons.headphones, '朗读', () => _startTTS());
+      default: return null;
+    }
   }
 
   Widget _buildBottomAction(IconData icon, String label, VoidCallback onTap) {
@@ -699,165 +712,119 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   void _showMoreMenu() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
+      builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.list_alt),
-              title: const Text('目录'),
-              onTap: () { Navigator.pop(context); _showChapterList(); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.search),
-              title: const Text('搜索'),
-              onTap: () { Navigator.pop(context); _showSearchInBook(); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.translate),
-              title: const Text('翻译'),
-              onTap: () { Navigator.pop(context); _showTranslateDialog(); },
-            ),
-            ListTile(
-              leading: Icon(_autoReadOn ? Icons.pause_circle : Icons.play_circle_outline),
-              title: Text(_autoReadOn ? '停止自动阅读' : '自动阅读'),
-              onTap: () { Navigator.pop(context); _toggleAutoRead(); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.swap_horiz),
-              title: const Text('章节换源'),
-              onTap: () async {
-                Navigator.pop(context);
-                final source = await showModalBottomSheet(
-                  context: context, isScrollControlled: true,
-                  builder: (_) => ChangeChapterSourceSheet(bookName: widget.book.name, author: widget.book.author),
-                );
-                if (source != null) {
-                  widget.book.origin = source.bookSourceUrl;
-                  widget.book.originName = source.bookSourceName;
-                  _loadChapterContent(_currentChapterIndex);
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.content_copy),
-              title: const Text('复制当前页'),
-              onTap: () async {
-                Navigator.pop(context);
-                if (_chapters.isNotEmpty && _currentChapterIndex < _chapters.length) {
-                  await Clipboard.setData(ClipboardData(text: _chapters[_currentChapterIndex].content ?? ''));
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.subject),
-              title: const Text('章节摘要'),
-              onTap: () { Navigator.pop(context); _showChapterSummary(); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit_note),
-              title: const Text('内容编辑'),
-              onTap: () { Navigator.pop(context); _showContentEditor(); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.find_replace),
-              title: const Text('生效替换'),
-              onTap: () { Navigator.pop(context); _showReplaceRules(); },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('书籍详情'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: widget.book)));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.refresh),
-              title: const Text('刷新目录'),
-              onTap: () {
-                Navigator.pop(context);
-                _fetchTocFromNetwork();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('离线缓存'),
-              onTap: () async {
-                Navigator.pop(context);
-                final range = await showModalBottomSheet<List<int>>(
-                  context: context,
-                  builder: (_) => DownloadSheet(chapters: _chapters, currentIndex: _currentChapterIndex),
-                );
-                if (range != null) _cacheChapters(range[0], range[1]);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bookmark_border),
-              title: const Text('添加书签'),
-              onTap: () {
-                Navigator.pop(context);
-                _addBookmark();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bookmarks),
-              title: const Text('书签列表'),
-              onTap: () {
-                Navigator.pop(context);
-                _showBookmarks();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share),
-              title: const Text('分享书籍'),
-              onTap: () {
-                Navigator.pop(context);
-                Share.share('《${widget.book.name}》- ${widget.book.author}');
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.swap_vert),
-              title: const Text('反转内容'),
-              onTap: () { Navigator.pop(context); _reverseContent(); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.format_align_left),
-              title: const Text('重新分段'),
-              onTap: () { Navigator.pop(context); _reSegment(); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.text_fields),
-              title: const Text('删除注音(ruby)'),
-              onTap: () { Navigator.pop(context); _cleanContent('ruby'); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.title),
-              title: const Text('删除标题标签'),
-              onTap: () { Navigator.pop(context); _cleanContent('h'); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.code),
-              title: const Text('选择编码'),
-              onTap: () { Navigator.pop(context); _selectCharset(); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.list_alt),
-              title: const Text('TXT目录规则'),
-              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const TxtTocRuleScreen())); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text('调试日志'),
-              onTap: () { Navigator.pop(context); _showDebugLog(); },
-            ),
+            for (final key in _moreMenuOrder) ...[
+              if (key == 'detail' || key == 'reverse') const Divider(),
+              if (_moreMenuItem(key, ctx) != null) _moreMenuItem(key, ctx)!,
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// 更多菜单项（显示由 _moreMenuOrder 控制）
+  Widget? _moreMenuItem(String key, BuildContext ctx) {
+    void close() => Navigator.pop(ctx);
+    switch (key) {
+      case 'toc': return ListTile(leading: const Icon(Icons.list_alt), title: const Text('目录'), onTap: () { close(); _showChapterList(); });
+      case 'search': return ListTile(leading: const Icon(Icons.search), title: const Text('搜索'), onTap: () { close(); _showSearchInBook(); });
+      case 'translate': return ListTile(leading: const Icon(Icons.translate), title: const Text('翻译'), onTap: () { close(); _showTranslateDialog(); });
+      case 'autoread': return ListTile(leading: Icon(_autoReadOn ? Icons.pause_circle : Icons.play_circle_outline), title: Text(_autoReadOn ? '停止自动阅读' : '自动阅读'), onTap: () { close(); _toggleAutoRead(); });
+      case 'changesource': return ListTile(leading: const Icon(Icons.swap_horiz), title: const Text('章节换源'), onTap: () async {
+          close();
+          final source = await showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => ChangeChapterSourceSheet(bookName: widget.book.name, author: widget.book.author));
+          if (source != null) { widget.book.origin = source.bookSourceUrl; widget.book.originName = source.bookSourceName; _loadChapterContent(_currentChapterIndex); }
+        });
+      case 'copypage': return ListTile(leading: const Icon(Icons.content_copy), title: const Text('复制当前页'), onTap: () async {
+          close();
+          if (_chapters.isNotEmpty && _currentChapterIndex < _chapters.length) {
+            await Clipboard.setData(ClipboardData(text: _chapters[_currentChapterIndex].content ?? ''));
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
+          }
+        });
+      case 'summary': return ListTile(leading: const Icon(Icons.subject), title: const Text('章节摘要'), onTap: () { close(); _showChapterSummary(); });
+      case 'contentedit': return ListTile(leading: const Icon(Icons.edit_note), title: const Text('内容编辑'), onTap: () { close(); _showContentEditor(); });
+      case 'replace': return ListTile(leading: const Icon(Icons.find_replace), title: const Text('生效替换'), onTap: () { close(); _showReplaceRules(); });
+      case 'detail': return ListTile(leading: const Icon(Icons.info_outline), title: const Text('书籍详情'), onTap: () { close(); Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: widget.book))); });
+      case 'refreshtoc': return ListTile(leading: const Icon(Icons.refresh), title: const Text('刷新目录'), onTap: () { close(); _fetchTocFromNetwork(); });
+      case 'cache': return ListTile(leading: const Icon(Icons.download), title: const Text('离线缓存'), onTap: () async {
+          close();
+          final range = await showModalBottomSheet<List<int>>(context: context, builder: (_) => DownloadSheet(chapters: _chapters, currentIndex: _currentChapterIndex));
+          if (range != null) _cacheChapters(range[0], range[1]);
+        });
+      case 'addbookmark': return ListTile(leading: const Icon(Icons.bookmark_border), title: const Text('添加书签'), onTap: () { close(); _addBookmark(); });
+      case 'bookmarklist': return ListTile(leading: const Icon(Icons.bookmarks), title: const Text('书签列表'), onTap: () { close(); _showBookmarks(); });
+      case 'share': return ListTile(leading: const Icon(Icons.share), title: const Text('分享书籍'), onTap: () { close(); Share.share('《${widget.book.name}》- ${widget.book.author}'); });
+      case 'reverse': return ListTile(leading: const Icon(Icons.swap_vert), title: const Text('反转内容'), onTap: () { close(); _reverseContent(); });
+      case 'resegment': return ListTile(leading: const Icon(Icons.format_align_left), title: const Text('重新分段'), onTap: () { close(); _reSegment(); });
+      case 'delruby': return ListTile(leading: const Icon(Icons.text_fields), title: const Text('删除注音(ruby)'), onTap: () { close(); _cleanContent('ruby'); });
+      case 'delh': return ListTile(leading: const Icon(Icons.title), title: const Text('删除标题标签'), onTap: () { close(); _cleanContent('h'); });
+      case 'charset': return ListTile(leading: const Icon(Icons.code), title: const Text('选择编码'), onTap: () { close(); _selectCharset(); });
+      case 'txttoc': return ListTile(leading: const Icon(Icons.list_alt), title: const Text('TXT目录规则'), onTap: () { close(); Navigator.push(context, MaterialPageRoute(builder: (_) => const TxtTocRuleScreen())); });
+      case 'debug': return ListTile(leading: const Icon(Icons.receipt_long), title: const Text('调试日志'), onTap: () { close(); _showDebugLog(); });
+      default: return null;
+    }
+  }
+
+  List<Widget> _buildSelectMenuChildren(dynamic state, Future<String> Function() grab) {
+    final children = <Widget>[];
+    for (final key in _selectMenuOrder) {
+      switch (key) {
+        case 'copy':
+          children.add(InkWell(onTap: () {
+            state.copySelection(SelectionChangedCause.toolbar);
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1)));
+          }, child: const Padding(padding: EdgeInsets.all(12), child: Text('复制'))));
+          break;
+        case 'marking':
+          children.add(InkWell(onTap: () async {
+            final text = await grab();
+            if (context.mounted) Navigator.pop(context);
+            _addMarking(text);
+          }, child: const Padding(padding: EdgeInsets.all(12), child: Text('划线'))));
+          break;
+        case 'dict':
+          children.add(InkWell(onTap: () async {
+            final w = await grab();
+            if (context.mounted) Navigator.pop(context);
+            _dictLookup(w);
+          }, child: const Padding(padding: EdgeInsets.all(12), child: Text('查词'))));
+          break;
+        case 'translate':
+          children.add(InkWell(onTap: () async {
+            final w = await grab();
+            if (context.mounted) Navigator.pop(context);
+            _translateSelection(w);
+          }, child: const Padding(padding: EdgeInsets.all(12), child: Text('翻译'))));
+          break;
+      }
+    }
+    return children;
+  }
+
+  Future<void> _translateSelection(String text) async {
+    if (text.trim().isEmpty) return;
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+    try {
+      await TranslationService.instance.loadPrefs();
+      final out = await TranslationService.instance.translate(text);
+      if (mounted) { Navigator.pop(context); showDialog(context: context, builder: (_) => AlertDialog(
+        title: const Text('翻译'),
+        content: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('原文：$text', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          const SizedBox(height: 8),
+          Text('译文：$out', style: const TextStyle(fontSize: 15)),
+        ])),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+      )); }
+    } catch (e) {
+      if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('翻译失败: $e'))); }
+    }
   }
 
   /// 反转章节内容（每段倒序）
