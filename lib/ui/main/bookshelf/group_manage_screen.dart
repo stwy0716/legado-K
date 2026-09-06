@@ -41,12 +41,15 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
               ? const Center(child: Text('暂无分组，点击右上角添加'))
               : ReorderableListView.builder(
                   itemCount: _groups.length,
-                  onReorder: (oldIndex, newIndex) {
+                  onReorder: (oldIndex, newIndex) async {
                     if (newIndex > oldIndex) newIndex--;
                     setState(() {
                       final group = _groups.removeAt(oldIndex);
                       _groups.insert(newIndex, group);
                     });
+                    for (var i = 0; i < _groups.length; i++) {
+                      await _db.insertBookGroup(BookGroup(id: _groups[i].id, name: _groups[i].name, order: i, show: _groups[i].show));
+                    }
                   },
                   itemBuilder: (context, index) {
                     final group = _groups[index];
