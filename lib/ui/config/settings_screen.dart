@@ -36,6 +36,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   SharedPreferences? _prefs;
   bool _autoUpdate = true;
+  int _autoUpdateHours = 6;
   bool _wifiOnly = false;
   bool _volumeKeyPage = true;
   bool _keepScreenOn = true;
@@ -78,6 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _prefs = await SharedPreferences.getInstance();
     setState(() {
       _autoUpdate = _prefs?.getBool('auto_update') ?? true;
+      _autoUpdateHours = _prefs?.getInt('auto_update_hours') ?? 6;
       _wifiOnly = _prefs?.getBool('wifi_only') ?? false;
       _volumeKeyPage = _prefs?.getBool('volume_key_page') ?? true;
       _keepScreenOn = _prefs?.getBool('keep_screen_on') ?? true;
@@ -295,6 +297,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: const Text('启动时自动检查书籍更新'),
             value: _autoUpdate,
             onChanged: (v) => setState(() { _autoUpdate = v; _saveSetting('auto_update', v); }),
+          ),
+          if (_autoUpdate) ListTile(
+            dense: true,
+            leading: const Icon(Icons.timer_outlined, size: 22),
+            title: const Text('自动更新间隔'),
+            trailing: DropdownButton<int>(
+              value: _autoUpdateHours,
+              items: const [DropdownMenuItem(value: 0, child: Text('30分钟')), DropdownMenuItem(value: 1, child: Text('1小时')), DropdownMenuItem(value: 3, child: Text('3小时')), DropdownMenuItem(value: 6, child: Text('6小时')), DropdownMenuItem(value: 12, child: Text('12小时')), DropdownMenuItem(value: 24, child: Text('每天'))],
+              onChanged: (v) => setState(() { _autoUpdateHours = v ?? 6; _saveSetting('auto_update_hours', _autoUpdateHours); }),
+            ),
           ),
           SwitchListTile(
             title: const Text('仅WiFi下更新'),

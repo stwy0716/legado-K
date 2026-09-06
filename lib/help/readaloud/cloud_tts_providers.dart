@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:legado_md3/data/model/cloud_tts_engine.dart';
 
@@ -248,6 +250,41 @@ class MimoTtsProvider extends CloudTtsProvider {
 }
 
 /// 云TTS提供商工厂
+/// 免费谷歌朗读（translate_tts，免 key），返回本地 mp3 路径
+class FreeGoogleTtsProvider extends CloudTtsProvider {
+  FreeGoogleTtsProvider(CloudTtsEngine engine) : super(engine);
+
+  @override
+  String get name => '免费谷歌朗读';
+
+  @override
+  Future<String?> synthesize(String text, {String? voice, double? rate, double? pitch}) async {
+    try {
+      final dio = Dio();
+      final tl = engine.voice ?? 'zh-CN';
+      final q = Uri.encodeComponent(text);
+      final url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=$tl&q=$q';
+      final resp = await dio.get<List<int>>(url,
+          options: Options(responseType: ResponseType.bytes, headers: {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36',
+            'Referer': 'https://translate.google.com/',
+          }));
+      final bytes = resp.data;
+      if (bytes == null || bytes.isEmpty) return null;
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
+      await file.writeAsBytes(bytes);
+      return file.path;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<List<String>> getVoices() async =>
+      ['zh-CN', 'zh-TW', 'en-US', 'en-GB', 'ja-JP', 'ko-KR', 'fr-FR', 'de-DE', 'es-ES', 'ru-RU'];
+}
+
 class CloudTtsProviderFactory {
   static CloudTtsProvider? create(CloudTtsEngine engine) {
     switch (engine.type?.toLowerCase()) {
@@ -272,13 +309,16 @@ class CloudTtsProviderFactory {
         return GeminiTtsProvider(engine);
       case 'mimo':
         return MimoTtsProvider(engine);
+      case 'free_google':
+      case 'free':
+        return FreeGoogleTtsProvider(engine);
       default:
         return null;
     }
   }
 
   static List<String> get allProviderTypes => [
-    'aliyun', 'tencent', 'azure', 'openai', 'volcengine', 'aws', 'gemini', 'mimo',
+    'aliyun', 'tencent', 'azure', 'openai', 'volcengine', 'aws', 'gemini', 'mimo', 'free_google',
   ];
 
   static String getProviderName(String type) {
@@ -291,6 +331,7 @@ class CloudTtsProviderFactory {
       case 'aws': return 'AWS Polly';
       case 'gemini': return 'Gemini';
       case 'mimo': return 'Mimo';
+      case 'free_google': case 'free': return '免费谷歌朗读(免Key)';
       default: return type;
     }
   }

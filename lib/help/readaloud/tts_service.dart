@@ -1,10 +1,21 @@
+import 'dart:async';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
+import 'package:legado_md3/data/local/app_database.dart';
+import 'package:legado_md3/help/readaloud/cloud_tts_providers.dart';
 
 /// TTS朗读服务
-/// 支持系统TTS和HTTP TTS
+/// 支持系统TTS和云端HTTP TTS（含免费谷歌朗读）
 class TtsService {
   final FlutterTts _flutterTts = FlutterTts();
+  final DatabaseService _db = DatabaseService();
+  CloudTtsProvider? _cloudProvider;
+  AudioPlayer? _cloudPlayer;
+  bool _cloudMode = false;
+  bool _cloudSpeaking = false;
+  int _segIndex = 0;
+  List<String> _segments = [];
   bool _isInitialized = false;
   bool _isPlaying = false;
   bool _isPaused = false;
@@ -72,11 +83,34 @@ class TtsService {
 
   /// 开始朗读
   Future<void> play() async {
-    if (!_isInitialized) await init();
+    if (!_cloudModeResolved) { await resolveCloudEngine(); _cloudModeResolved = true; }
+    if (!_isInitialized && !_cloudMode) await init();
     if (_chapters.isEmpty) return;
     _isPaused = false;
     await _speakCurrent();
   }
+  bool _cloudModeResolved = false;
+
+  /// 解析启用的云端 TTS 引擎；无则回退系统 TTS
+  Future<void> resolveCloudEngine() async {
+    try {
+      final engines = await _db.getCloudTtsEngines();
+      for (final e in engines) {
+        if (e.enabled == 1) {
+          final p = CloudTtsProviderFactory.create(e);
+          if (p != null) { _cloudProvider = p; _cloudMode = true; break; }
+        }
+      }
+    } catch (_) {}
+    if (_cloudMode) {
+      _cloudPlayer ??= AudioPlayer();
+      _cloudPlayer?.onPlayerComplete.listen((_) {
+        if (_cloudSpeaking) _playNextSegment();
+      });
+    }
+  }
+
+  bool get isCloudMode => _cloudMode;
 
   Future<void> _speakCurrent() async {
     if (_currentIndex >= _chapters.length) return;
@@ -92,6 +126,10 @@ class TtsService {
         } catch (_) {}
       }
     }
+    if (_cloudMode && _cloudProvider != null) {
+      await _cloudSpeak(text);
+      return;
+    }
     try {
       await _flutterTts.stop();
       await _flutterTts.speak(text);
@@ -100,8 +138,74 @@ class TtsService {
     }
   }
 
+  /// 云端朗读：按句切分（<=180 字），逐段合成并顺序播放
+  List<String> _splitSegments(String text) {
+    final result = <String>[];
+    final sentences = text.split(RegExp(r'(?<=[。！？!?\n；;])'));
+    final buf = StringBuffer();
+    for (final s in sentences) {
+      if (s.isEmpty) continue;
+      if (buf.length + s.length > 180) {
+        if (buf.isNotEmpty) result.add(buf.toString());
+        buf.clear();
+        if (s.length > 180) {
+          for (var i = 0; i < s.length; i += 180) {
+            result.add(s.substring(i, (i + 180).clamp(0, s.length)));
+          }
+        } else {
+          buf.write(s);
+        }
+      } else {
+        buf.write(s);
+      }
+    }
+    if (buf.isNotEmpty) result.add(buf.toString());
+    return result.isEmpty ? [text] : result;
+  }
+
+  Future<void> _cloudSpeak(String text) async {
+    _segments = _splitSegments(text);
+    _segIndex = 0;
+    _cloudSpeaking = true;
+    await _playNextSegment();
+  }
+
+  Future<void> _playNextSegment() async {
+    if (!_cloudSpeaking) return;
+    if (_segIndex >= _segments.length) {
+      // 本章播完，下一章
+      _isPlaying = false;
+      if (_currentIndex < _chapters.length - 1) {
+        _currentIndex++;
+        _speakCurrent();
+      } else {
+        onComplete?.call();
+      }
+      return;
+    }
+    final seg = _segments[_segIndex++];
+    onProgress?.call(seg);
+    try {
+      final path = await _cloudProvider!.synthesize(seg);
+      if (path == null) {
+        // 本段失败，跳过继续
+        _playNextSegment();
+        return;
+      }
+      await _cloudPlayer?.stop();
+      await _cloudPlayer?.play(DeviceFileSource(path));
+    } catch (e) {
+      _playNextSegment();
+    }
+  }
+
   /// 暂停
   Future<void> pause() async {
+    if (_cloudMode) {
+      await _cloudPlayer?.pause();
+      _isPaused = true; _isPlaying = false;
+      return;
+    }
     if (!_isInitialized) return;
     try {
       await _flutterTts.pause();
@@ -110,9 +214,20 @@ class TtsService {
     } catch (_) {}
   }
 
+  /// 恢复
+  Future<void> resume() async {
+    if (_cloudMode) {
+      await _cloudPlayer?.resume();
+      _isPaused = false; _isPlaying = true;
+      return;
+    }
+    play();
+  }
+
   /// 停止
   Future<void> stop() async {
-    if (!_isInitialized) return;
+    _cloudSpeaking = false;
+    if (_cloudMode) { await _cloudPlayer?.stop(); _isPlaying = false; _isPaused = false; return; }
     try {
       await _flutterTts.stop();
       _isPlaying = false;
@@ -124,6 +239,7 @@ class TtsService {
   Future<void> next() async {
     if (_currentIndex < _chapters.length - 1) {
       _currentIndex++;
+      if (_cloudMode) _cloudSpeaking = false;
       await _speakCurrent();
     }
   }
@@ -132,6 +248,7 @@ class TtsService {
   Future<void> previous() async {
     if (_currentIndex > 0) {
       _currentIndex--;
+      if (_cloudMode) _cloudSpeaking = false;
       await _speakCurrent();
     }
   }
@@ -189,6 +306,8 @@ class TtsService {
     await stop();
     _chapters.clear();
     _isInitialized = false;
+    await _cloudPlayer?.dispose();
+    _cloudPlayer = null;
   }
 }
 

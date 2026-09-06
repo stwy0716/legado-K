@@ -335,7 +335,14 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                         Expanded(
                           child: _isLoadingChapter
                               ? Center(child: CircularProgressIndicator(color: Color(config.textColor)))
-                              : _buildReadingContent(config),
+                              : RotatedBox(
+                                  quarterTurns: config.verticalLayout,
+                                  child: Transform(
+                                    alignment: Alignment.center,
+                                    transform: config.invertPage ? (Matrix4.identity()..rotateZ(3.1415926535897932)) : Matrix4.identity(),
+                                    child: _buildReadingContent(config),
+                                  ),
+                                ),
                         ),
                         if (config.pageNumberVisibility || config.timeVisibility)
                           _buildFooter(config),
@@ -413,6 +420,8 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                 fontSize: config.textSize.toDouble(),
                 color: Color(config.textColor),
                 height: config.lineSpacing * 0.5 + 1.0,
+                letterSpacing: config.letterSpacing,
+                wordSpacing: config.wordSpacing,
                 fontWeight: config.boldText ? FontWeight.bold : FontWeight.normal,
                 fontFamily: config.fontFamily,
               ),
@@ -444,6 +453,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
               style: TextStyle(
                 fontSize: config.footerSize.toDouble(),
                 color: Color(config.footerColor),
+                fontWeight: config.footerBold ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           if (config.pageNumberVisibility && _pages.length > 1)
@@ -452,6 +462,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
               style: TextStyle(
                 fontSize: config.footerSize.toDouble(),
                 color: Color(config.footerColor),
+                fontWeight: config.footerBold ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           if (config.batteryVisibility)
@@ -907,11 +918,25 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   void _showDebugLog() {
     showDialog(context: context, builder: (c) => AlertDialog(
       title: const Text('调试日志'),
-      content: SizedBox(width: double.maxFinite, child: ListView(shrinkWrap: true, children: const [
-        ListTile(dense: true, leading: Icon(Icons.info_outline, size: 18), title: Text('章节加载/解析日志', style: TextStyle(fontSize: 12))),
-        ListTile(dense: true, leading: Icon(Icons.check_circle_outline, size: 18), title: Text('书源引擎运行正常', style: TextStyle(fontSize: 12))),
-      ])),
-      actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('关闭'))],
+      content: SizedBox(
+        width: double.maxFinite,
+        child: StatefulBuilder(builder: (c, setD) {
+          final logs = List<String>.from(_engine.debugLog.reversed);
+          final head = '书源: ${widget.book.originName ?? widget.book.origin ?? "本地"}\n章节: ${_currentChapterIndex + 1}/${_chapters.length}\n分页: ${_currentPage + 1}/${_pages.length}\n';
+          if (logs.isEmpty) {
+            return SingleChildScrollView(child: Text('$head\n（暂无网络请求日志，切换章节或刷新目录后可见）'));
+          }
+          return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(head, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            const Divider(height: 8),
+            Expanded(child: ListView(children: logs.map((l) => Padding(padding: const EdgeInsets.symmetric(vertical: 2), child: Text(l, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')))).toList())),
+          ]);
+        }),
+      ),
+      actions: [
+        TextButton(onPressed: () { _engine.clearDebugLog(); Navigator.pop(c); }, child: const Text('清空')),
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('关闭')),
+      ],
     ));
   }
 

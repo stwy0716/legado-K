@@ -35,6 +35,7 @@ class _CloudTtsScreenState extends State<CloudTtsScreen> {
         CloudTtsEngine(name: 'AWS Polly', type: 'aws', region: 'us-east-1', enabled: 0),
         CloudTtsEngine(name: 'Gemini TTS', type: 'gemini', enabled: 0),
         CloudTtsEngine(name: 'Mimo TTS', type: 'mimo', enabled: 0),
+        CloudTtsEngine(name: '免费谷歌朗读(免Key)', type: 'free_google', voice: 'zh-CN', enabled: 0),
       ];
       for (final e in defaults) {
         await _db.insertCloudTtsEngine(e);

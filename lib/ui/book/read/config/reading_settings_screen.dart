@@ -109,6 +109,7 @@ class _ReadingSettingsScreenState extends State<ReadingSettingsScreen> with Sing
         ListTile(title: const Text('行距'), trailing: DropdownButton<int>(value: config.lineSpacing, items: List.generate(6, (i) => DropdownMenuItem(value: i, child: Text('${i * 0.5 + 1}倍'))), onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.lineSpacing = v ?? 2))),
         ListTile(title: const Text('段间距'), trailing: DropdownButton<int>(value: config.paragraphSpacing, items: List.generate(5, (i) => DropdownMenuItem(value: i, child: Text('${i}行'))), onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.paragraphSpacing = v ?? 1))),
         ListTile(title: const Text('字间距'), trailing: Slider(value: config.letterSpacing, min: 0, max: 10, divisions: 20, label: config.letterSpacing.toStringAsFixed(1), onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.letterSpacing = v))),
+        ListTile(title: const Text('词间距'), trailing: Slider(value: config.wordSpacing, min: 0, max: 20, divisions: 20, label: config.wordSpacing.toStringAsFixed(1), onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.wordSpacing = v))),
         ListTile(title: const Text('阴影等级'), trailing: DropdownButton<int>(value: config.shadowLevel, items: List.generate(4, (i) => DropdownMenuItem(value: i, child: Text('等级$i'))), onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.shadowLevel = v ?? 0))),
         ListTile(title: const Text('下划线'), trailing: DropdownButton<int>(value: config.underlineType, items: const [DropdownMenuItem(value: 0, child: Text('无')), DropdownMenuItem(value: 1, child: Text('实线')), DropdownMenuItem(value: 2, child: Text('虚线')), DropdownMenuItem(value: 3, child: Text('波浪线')), DropdownMenuItem(value: 4, child: Text('双线'))], onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.underlineType = v ?? 0))),
         const Divider(),
@@ -133,6 +134,7 @@ class _ReadingSettingsScreenState extends State<ReadingSettingsScreen> with Sing
         if (config.autoNextPage) ListTile(title: const Text('自动翻页速度'), trailing: Slider(value: config.autoNextPageSpeed.toDouble(), min: 1, max: 20, divisions: 19, label: '${config.autoNextPageSpeed}秒', onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.autoNextPageSpeed = v.toInt()))),
         SwitchListTile(title: const Text('模拟阅读'), value: config.simulatedReading, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.simulatedReading = v)),
         SwitchListTile(title: const Text('上下颠倒'), value: config.invertPage, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.invertPage = v)),
+        SwitchListTile(title: const Text('竖排(横屏竖握)'), value: config.verticalLayout == 1, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.verticalLayout = v ? 1 : 0)),
       ],
     );
   }
@@ -182,6 +184,8 @@ class _ReadingSettingsScreenState extends State<ReadingSettingsScreen> with Sing
         if (config.customHeaderEnabled) ListTile(title: const Text('头部文字'), trailing: const Icon(Icons.edit), onTap: () => _showHeaderEditor()),
         SwitchListTile(title: const Text('自定义底部'), value: config.customFooterEnabled, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.customFooterEnabled = v)),
         if (config.customFooterEnabled) ListTile(title: const Text('底部文字'), trailing: const Icon(Icons.edit), onTap: () => _showFooterEditor()),
+        SwitchListTile(dense: true, title: const Text('头部加粗'), value: config.headerBold, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.headerBold = v)),
+        SwitchListTile(dense: true, title: const Text('底部加粗'), value: config.footerBold, onChanged: (v) => context.read<ReadProvider>().updateConfig((c) => c.footerBold = v)),
       ],
     );
   }

@@ -61,8 +61,12 @@ class _TtsPlayerScreenState extends State<TtsPlayerScreen> {
       await widget.ttsService.pause();
       setState(() => _isPlaying = false);
     } else {
-      widget.ttsService.setChapters(widget.chapters, startIndex: _currentIndex);
-      await widget.ttsService.play();
+      if (widget.ttsService.isCloudMode && widget.ttsService.isPaused) {
+        await widget.ttsService.resume();
+      } else {
+        widget.ttsService.setChapters(widget.chapters, startIndex: _currentIndex);
+        await widget.ttsService.play();
+      }
       setState(() => _isPlaying = true);
     }
   }

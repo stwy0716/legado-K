@@ -8,6 +8,7 @@ import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/replace_rule.dart';
 import 'package:legado_md3/help/source/replace_rule_service.dart';
+import 'package:legado_md3/help/source/js_mini_eval.dart';
 import 'package:enough_convert/enough_convert.dart';
 
 /// 规则类型
@@ -32,6 +33,25 @@ class BookSourceEngine {
   /// 强制编码（阅读页可切换），null 时自动探测
   String? forcedCharset;
   void setCharset(String? cs) => forcedCharset = cs;
+
+  /// JS 规则可用的上下文
+  String? _ctxKey;
+  int? _ctxPage;
+  String? _ctxBaseUrl;
+  void _setCtx({String? key, int? page, String? baseUrl}) {
+    if (key != null) _ctxKey = key;
+    if (page != null) _ctxPage = page;
+    if (baseUrl != null) _ctxBaseUrl = baseUrl;
+  }
+
+  /// 调试日志（环形，最近 120 条）
+  final List<String> debugLog = [];
+  void _log(String msg) {
+    final t = DateTime.now().toIso8601String().substring(11, 19);
+    debugLog.add('$t  $msg');
+    if (debugLog.length > 120) debugLog.removeAt(0);
+  }
+  void clearDebugLog() => debugLog.clear();
 
   /// 解析规则类型
   _RuleType _parseRuleType(String rule) {
@@ -120,14 +140,23 @@ class BookSourceEngine {
     final dioOptions = Options(method: method, headers: headers, responseType: ResponseType.bytes,
       followRedirects: true, validateStatus: (s) => s != null && s < 400);
 
+    _log('$method $finalUrl');
     Response<List<int>> response;
-    if (method == 'POST') {
-      final postBody = body ?? opts['body'] ?? options?['body'] ?? '';
-      response = await _dio.post(finalUrl, data: postBody, options: dioOptions);
-    } else {
-      response = await _dio.get(finalUrl, options: dioOptions);
+    try {
+      if (method == 'POST') {
+        final postBody = body ?? opts['body'] ?? options?['body'] ?? '';
+        response = await _dio.post(finalUrl, data: postBody, options: dioOptions);
+      } else {
+        response = await _dio.get(finalUrl, options: dioOptions);
+      }
+    } catch (e) {
+      _log('请求失败: $e');
+      rethrow;
     }
-    return _decodeBytes(response.data ?? [], response.headers.map);
+    _log('响应 ${response.statusCode}, ${(response.data ?? []).length} 字节');
+    final text = _decodeBytes(response.data ?? [], response.headers.map);
+    _log('解码完成，文本 ${text.length} 字符');
+    return text;
   }
 
   /// 按编码解码字节：强制编码 > Content-Type > HTML meta > 默认 utf-8（失败回退 GBK）
@@ -140,7 +169,7 @@ class BookSourceEngine {
     // 2) HTML meta（用 ascii/latin1 先扫前 2KB）
     if (cs == null) {
       final head = String.fromCharCodes(bytes.take(2048).map((b) => b & 0xff)).toLowerCase();
-      final mm = RegExp(r'charset=["\']?([a-z0-9\-]+)').firstMatch(head);
+      final mm = RegExp(r"""charset=["']?([a-z0-9\-]+)""").firstMatch(head);
       if (mm != null) cs = mm.group(1);
     }
     cs = cs?.toLowerCase();
@@ -174,6 +203,11 @@ class BookSourceEngine {
       case _RuleType.xpath:
       case _RuleType.defaultRule:
         return _defaultRuleExtractList(doc, cleanRule);
+      case _RuleType.js: {
+        final r = JsMiniEvaluator.eval(cleanRule,
+            result: doc.body?.text ?? doc.text ?? '', key: _ctxKey, page: _ctxPage, baseUrl: _ctxBaseUrl);
+        return (r == null || r.isEmpty) ? [] : [r];
+      }
       default:
         return [];
     }
@@ -318,6 +352,13 @@ class BookSourceEngine {
   List<String> _extractList(String content, String rule, {bool isJson = false}) {
     if (rule.isEmpty) return [];
     final type = _parseRuleType(rule);
+
+    if (type == _RuleType.js) {
+      final r = JsMiniEvaluator.eval(_stripPrefix(rule),
+          result: content, key: _ctxKey, page: _ctxPage, baseUrl: _ctxBaseUrl);
+      if (r == null || r.isEmpty) return [];
+      return [r];
+    }
 
     if (isJson || type == _RuleType.json) {
       try {
@@ -527,6 +568,7 @@ class BookSourceEngine {
 
   /// 搜索书籍
   Future<List<SearchBook>> search(BookSource source, String keyword, {int page = 1}) async {
+    _setCtx(key: keyword, page: page, baseUrl: source.bookSourceUrl);
     if (source.searchUrl == null || source.searchUrl!.isEmpty) return [];
     if (source.ruleSearch == null) return [];
 
@@ -553,6 +595,7 @@ class BookSourceEngine {
 
   /// 发现书籍
   Future<List<SearchBook>> explore(BookSource source, {int page = 1}) async {
+    _setCtx(page: page, baseUrl: source.bookSourceUrl);
     if (source.exploreUrl == null || source.exploreUrl!.isEmpty) return [];
     if (source.ruleExplore == null) return [];
 
@@ -657,6 +700,7 @@ class BookSourceEngine {
 
   /// 获取章节目录
   Future<List<BookChapter>> getToc(BookSource source, String tocUrl) async {
+    _setCtx(baseUrl: source.bookSourceUrl);
     if (source.ruleToc == null) return [];
 
     try {
@@ -721,6 +765,7 @@ class BookSourceEngine {
   /// 获取正文内容
   Future<String?> getContent(BookSource source, String contentUrl,
       {List<ReplaceRule>? replaceRules}) async {
+    _setCtx(baseUrl: source.bookSourceUrl);
     if (source.ruleContent == null) return null;
 
     try {

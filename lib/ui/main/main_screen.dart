@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:legado_md3/help/storage/import_book_service.dart';
+import 'package:legado_md3/help/storage/auto_update_service.dart';
 import 'package:provider/provider.dart';
 import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/constant/app_theme.dart';
@@ -41,6 +42,12 @@ class _MainScreenState extends State<MainScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<BookProvider>(context, listen: false).loadBooks();
       _checkOpenedFile();
+      AutoUpdateService.instance.start(onUpdated: (n) {
+        if (mounted) {
+          Provider.of<BookProvider>(context, listen: false).loadBooks();
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('自动更新：$n 本有新章节')));
+        }
+      });
     });
     _fileChannel.setMethodCallHandler((call) async {
       if (call.method == 'onFileOpened' && call.arguments is String) {
