@@ -379,21 +379,23 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
           ),
           child: SelectionArea(
             contextMenuBuilder: (context, state) {
-              String selected() {
-                final sel = state.currentSelectable?.value.selection;
-                return sel == null ? '' : sel.textInside(_pages[index]);
+              // 兼容 Flutter 3.24：先复制选区，再从剪贴板读取选中文字（不依赖 currentTextSelection/currentSelectable）
+              Future<String> grab() async {
+                state.copySelection(SelectionChangedCause.toolbar);
+                await Future.delayed(const Duration(milliseconds: 30));
+                final d = await Clipboard.getData(Clipboard.kTextPlain);
+                return d?.text ?? '';
               }
               return AdaptiveTextSelectionToolbar(
                 anchors: state.contextMenuAnchors,
                 children: [
-                  InkWell(onTap: () {
-                    final text = selected();
-                    state.copySelection(SelectionChangedCause.toolbar);
-                    Navigator.pop(context);
+                  InkWell(onTap: () async {
+                    final text = await grab();
+                    if (context.mounted) Navigator.pop(context);
                     _addMarking(text);
                   }, child: const Padding(padding: EdgeInsets.all(12), child: Text('划线'))),
                   InkWell(onTap: () { state.copySelection(SelectionChangedCause.toolbar); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1))); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('复制'))),
-                  InkWell(onTap: () { final w = selected(); Navigator.pop(context); _dictLookup(w); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('查词'))),
+                  InkWell(onTap: () async { final w = await grab(); if (context.mounted) Navigator.pop(context); _dictLookup(w); }, child: const Padding(padding: EdgeInsets.all(12), child: Text('查词'))),
                 ],
               );
             },
