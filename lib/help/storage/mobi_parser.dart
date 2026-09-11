@@ -59,7 +59,7 @@ class MobiParser {
       var text = _htmlToText(html);
       if (text.trim().isEmpty) return null;
 
-      final name = (pdbName?.trim().isNotEmpty == true ? pdbName!.trim() : path.split('/').last.replaceAll(RegExp(r'\.mobi$|\.azw$', caseSensitive: false));
+      final name = (pdbName?.trim().isNotEmpty == true ? pdbName!.trim() : path.split('/').last.replaceAll(RegExp(r'\.mobi$|\.azw$', caseSensitive: false), ''));
       final book = Book(name: name, author: '未知作者', local: true, type: 1, fileName: path, canUpdate: false,
           origin: 'local', originName: '本地书籍', noteUrl: 'local://$path', bookUrl: 'local://$path', wordCount: text.length);
 
