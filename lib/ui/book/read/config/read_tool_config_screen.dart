@@ -26,7 +26,7 @@ class _ReadToolConfigScreenState extends State<ReadToolConfigScreen> with Single
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
+    _tab = TabController(length: 4, vsync: this);
     _load();
   }
 
@@ -34,10 +34,12 @@ class _ReadToolConfigScreenState extends State<ReadToolConfigScreen> with Single
     final tb = await ReadMenuConfig.load(ReadMenuConfig.kToolBar, ReadMenuConfig.defaultToolBar);
     final mm = await ReadMenuConfig.load(ReadMenuConfig.kMoreMenu, ReadMenuConfig.defaultMoreMenu);
     final sm = await ReadMenuConfig.load(ReadMenuConfig.kSelectMenu, ReadMenuConfig.defaultSelectMenu);
+    final fb = await ReadMenuConfig.load(ReadMenuConfig.kFloatingBar, ReadMenuConfig.defaultFloatingBar);
     _groups
       ..add(_Group('底部工具栏', ReadMenuConfig.kToolBar, ReadMenuConfig.toolBarItems, ReadMenuConfig.defaultToolBar, tb))
       ..add(_Group('更多菜单', ReadMenuConfig.kMoreMenu, ReadMenuConfig.moreMenuItems, ReadMenuConfig.defaultMoreMenu, mm))
-      ..add(_Group('文本选择菜单', ReadMenuConfig.kSelectMenu, ReadMenuConfig.selectMenuItems, ReadMenuConfig.defaultSelectMenu, sm));
+      ..add(_Group('文本选择菜单', ReadMenuConfig.kSelectMenu, ReadMenuConfig.selectMenuItems, ReadMenuConfig.defaultSelectMenu, sm))
+      ..add(_Group('悬浮快捷栏', ReadMenuConfig.kFloatingBar, ReadMenuConfig.floatingBarItems, ReadMenuConfig.defaultFloatingBar, fb));
     if (mounted) setState(() => _loading = false);
   }
 
@@ -69,7 +71,7 @@ class _ReadToolConfigScreenState extends State<ReadToolConfigScreen> with Single
     return Scaffold(
       appBar: AppBar(
         title: const Text('阅读菜单配置'),
-        bottom: TabBar(controller: _tab, tabs: const [Tab(text: '底部工具栏'), Tab(text: '更多菜单'), Tab(text: '选择菜单')]),
+        bottom: TabBar(controller: _tab, isScrollable: true, tabs: const [Tab(text: '底部工具栏'), Tab(text: '更多菜单'), Tab(text: '选择菜单'), Tab(text: '悬浮栏')]),
         actions: [
           IconButton(tooltip: '恢复默认', icon: const Icon(Icons.restart_alt), onPressed: _resetAll),
         ],

@@ -70,12 +70,15 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   List<String> _toolbarOrder = List.of(ReadMenuConfig.defaultToolBar);
   List<String> _moreMenuOrder = List.of(ReadMenuConfig.defaultMoreMenu);
   List<String> _selectMenuOrder = List.of(ReadMenuConfig.defaultSelectMenu);
+  List<String> _floatingBarOrder = List.of(ReadMenuConfig.defaultFloatingBar);
+  bool _floatingBarVisible = true;
 
   Future<void> _loadMenuConfig() async {
     final tb = await ReadMenuConfig.load(ReadMenuConfig.kToolBar, ReadMenuConfig.defaultToolBar);
     final mm = await ReadMenuConfig.load(ReadMenuConfig.kMoreMenu, ReadMenuConfig.defaultMoreMenu);
     final sm = await ReadMenuConfig.load(ReadMenuConfig.kSelectMenu, ReadMenuConfig.defaultSelectMenu);
-    if (mounted) setState(() { _toolbarOrder = tb; _moreMenuOrder = mm; _selectMenuOrder = sm; });
+    final fb = await ReadMenuConfig.load(ReadMenuConfig.kFloatingBar, ReadMenuConfig.defaultFloatingBar);
+    if (mounted) setState(() { _toolbarOrder = tb; _moreMenuOrder = mm; _selectMenuOrder = sm; _floatingBarOrder = fb; });
   }
 
   @override
@@ -373,6 +376,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                           ),
                         ),
                       ),
+                    _buildFloatingBar(),
                   ],
                 ),
               ),
@@ -688,6 +692,60 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
         ),
       ),
     );
+  }
+
+  /// 悬浮快捷栏（右侧竖排，可点击手柄收起/展开）
+  Widget _buildFloatingBar() {
+    if (_floatingBarOrder.isEmpty) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return Positioned(
+      right: 4,
+      top: MediaQuery.of(context).size.height * 0.3,
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          decoration: BoxDecoration(
+            color: cs.surface.withOpacity(0.85),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6)],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () => setState(() => _floatingBarVisible = !_floatingBarVisible),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Icon(_floatingBarVisible ? Icons.chevron_right : Icons.chevron_left, size: 18, color: cs.onSurfaceVariant),
+                ),
+              ),
+              if (_floatingBarVisible)
+                for (final key in _floatingBarOrder)
+                  if (_floatingAction(key) != null)
+                    IconButton(
+                      icon: Icon(_floatingAction(key)!.$1, size: 20),
+                      tooltip: _floatingAction(key)!.$2,
+                      onPressed: _floatingAction(key)!.$3,
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  (IconData, String, VoidCallback)? _floatingAction(String key) {
+    switch (key) {
+      case 'prev': return (Icons.skip_previous, '上一章', () => _currentChapterIndex > 0 ? _loadChapterContent(_currentChapterIndex - 1) : null);
+      case 'next': return (Icons.skip_next, '下一章', () => _currentChapterIndex < _chapters.length - 1 ? _loadChapterContent(_currentChapterIndex + 1) : null);
+      case 'toc': return (Icons.list_alt, '目录', () => _showChapterList());
+      case 'search': return (Icons.search, '搜索', () => _showSearchInBook());
+      case 'tts': return (Icons.headphones, '朗读', () => _startTTS());
+      case 'more': return (Icons.more_horiz, '更多', () => _showMoreMenu());
+      default: return null;
+    }
   }
 
   (IconData, String, VoidCallback)? _toolAction(String key) {    switch (key) {
