@@ -313,6 +313,28 @@ class DatabaseService {
     await db.update('rss_articles', {'read': 1}, where: 'id = ?', whereArgs: [id]);
   }
 
+  /// 设置一篇 RSS 文章已读/未读
+  Future<void> setRssArticleRead(int id, bool read) async {
+    final db = await database;
+    await db.update('rss_articles', {'read': read ? 1 : 0}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// 将某订阅源（或全部）文章标为已读
+  Future<void> markAllRssRead({String? sourceUrl}) async {
+    final db = await database;
+    if (sourceUrl == null) {
+      await db.update('rss_articles', {'read': 1});
+    } else {
+      await db.update('rss_articles', {'read': 1}, where: 'sourceUrl = ?', whereArgs: [sourceUrl]);
+    }
+  }
+
+  /// 星标/取消星标一篇 RSS 文章
+  Future<void> setRssArticleStar(int id, bool star) async {
+    final db = await database;
+    await db.update('rss_articles', {'star': star ? 1 : 0}, where: 'id = ?', whereArgs: [id]);
+  }
+
   // TXT目录规则DAO
   Future<List<TxtTocRule>> getTxtTocRules() async {
     final db = await database;

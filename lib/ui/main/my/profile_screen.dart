@@ -22,6 +22,7 @@ import 'package:legado_md3/ui/file/file_manage_screen.dart';
 import 'package:legado_md3/ui/bookmark/book_marking_screen.dart';
 import 'package:legado_md3/ui/config/lab_config_screen.dart';
 import 'package:legado_md3/ui/main/subscribe/subscribe_screen.dart';
+import 'package:legado_md3/help/storage/crash_log_helper.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -188,10 +189,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         ListTile(
           dense: true, leading: const Icon(Icons.bug_report, size: 20), title: const Text('崩溃日志'),
-          onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂无崩溃日志'))); },
+          onTap: () { Navigator.pop(context); _showCrashLog(); },
         ),
       ])),
       actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
+    ));
+  }
+
+  Future<void> _showCrashLog() async {
+    final logs = await CrashLogHelper.instance.readLogs();
+    if (!mounted) return;
+    showDialog(context: context, builder: (c) => AlertDialog(
+      title: const Text('崩溃日志'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: logs.trim().isEmpty
+            ? const Text('暂无崩溃日志', style: TextStyle(color: Colors.grey))
+            : SingleChildScrollView(child: SelectableText(logs, style: const TextStyle(fontSize: 11, fontFamily: 'monospace'))),
+      ),
+      actions: [
+        if (logs.trim().isNotEmpty) TextButton(onPressed: () async { await CrashLogHelper.instance.clear(); if (mounted) { Navigator.pop(c); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已清空崩溃日志'))); } }, child: const Text('清空')),
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('关闭')),
+      ],
     ));
   }
 

@@ -289,22 +289,31 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
             ListTile(
               leading: const Icon(Icons.content_copy),
               title: const Text('复制源JSON'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制'))); },
+              onTap: () async {
+                Navigator.pop(context);
+                await Clipboard.setData(ClipboardData(text: jsonEncode(source.toJson())));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('订阅源JSON已复制')));
+              },
             ),
             ListTile(
               leading: const Icon(Icons.share),
               title: const Text('分享'),
-              onTap: () { Navigator.pop(context); Share.share('Legado RSS订阅源分享'); },
+              onTap: () { Navigator.pop(context); Share.share(jsonEncode(source.toJson())); },
             ),
             ListTile(
               leading: const Icon(Icons.star_outline),
-              title: const Text('收藏文章'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('收藏文章'))); },
+              title: const Text('查看收藏文章'),
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const RssFavoritesScreen())); },
             ),
             ListTile(
               leading: const Icon(Icons.done_all),
               title: const Text('全部标为已读'),
-              onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已全部标为已读'))); },
+              onTap: () async {
+                Navigator.pop(context);
+                await _db.markAllRssRead(sourceUrl: source.sourceUrl);
+                await _loadData();
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已全部标为已读')));
+              },
             ),
             const Divider(),
             ListTile(
@@ -327,12 +336,20 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
       ListTile(
         leading: Icon(article.read == true ? Icons.mark_email_unread : Icons.mark_email_read),
         title: Text(article.read == true ? '标为未读' : '标为已读'),
-        onTap: () async { Navigator.pop(context); if (article.id != null) { article.read = !(article.read == true); await _db.markRssArticleRead(article.id!); _loadData(); } },
+        onTap: () async { Navigator.pop(context); if (article.id != null) { final r = !(article.read == true); await _db.setRssArticleRead(article.id!, r); _loadData(); } },
       ),
       ListTile(
-        leading: const Icon(Icons.star_border),
-        title: const Text('收藏'),
-        onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已收藏'))); },
+        leading: Icon(article.starred == true ? Icons.star : Icons.star_border),
+        title: Text(article.starred == true ? '取消收藏' : '收藏'),
+        onTap: () async {
+          Navigator.pop(context);
+          if (article.id != null) {
+            final s = !(article.starred == true);
+            await _db.setRssArticleStar(article.id!, s);
+            await _loadData();
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s ? '已收藏' : '已取消收藏')));
+          }
+        },
       ),
       ListTile(
         leading: const Icon(Icons.open_in_browser),

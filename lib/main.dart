@@ -5,9 +5,12 @@ import 'package:legado_md3/constant/app_theme.dart';
 import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/ui/main/main_screen.dart';
 import 'package:legado_md3/ui/welcome/welcome_screen.dart';
+import 'package:legado_md3/help/storage/crash_log_helper.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // 安装崩溃日志捕获（框架异常 + 异步异常落盘，供「我的-崩溃日志」查看）
+  CrashLogHelper.instance.install();
   runApp(const LegadoApp());
 }
 
