@@ -130,7 +130,7 @@ class EpubParser {
           .replaceAll('&nbsp;', ' ').replaceAll('&amp;', '&').replaceAll('&lt;', '<')
           .replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&#39;', "'")
           .replaceAll('&hellip;', '…').replaceAll('&mdash;', '—').replaceAll('&ndash;', '–');
-      text = text.replaceAll(RegExp(r'&#(\d+);'), (m) => String.fromCharCode(int.parse(m.group(1)!)));
+      text = text.replaceAllMapped(RegExp(r'&#(\d+);'), (m) => String.fromCharCode(int.parse(m.group(1)!)));
       text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
 
       return text;
