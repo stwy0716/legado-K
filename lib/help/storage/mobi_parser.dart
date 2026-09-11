@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
 
@@ -148,6 +149,6 @@ class MobiParser {
   static int _u32(List<int> d, int o) => ((d[o] & 0xFF) << 24) | ((d[o + 1] & 0xFF) << 16) | ((d[o + 2] & 0xFF) << 8) | (d[o + 3] & 0xFF);
   static String _latin1(List<int> d) => String.fromCharCodes(d.map((b) => b & 0xFF));
   static String _utf8OrLantin(List<int> d) {
-    try { return String.fromCharCodes(d); } catch (_) { return _latin1(d); }
+    try { return utf8.decode(d, allowMalformed: false); } catch (_) { return _latin1(d); }
   }
 }
