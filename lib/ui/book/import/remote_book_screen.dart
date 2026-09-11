@@ -8,6 +8,7 @@ import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/help/source/txt_parser.dart';
 import 'package:legado_md3/help/storage/epub_parser.dart';
+import 'package:legado_md3/help/storage/import_book_service.dart';
 
 /// 远程书籍导入（WebDAV），对齐原版 import/remote/RemoteBookScreen
 class RemoteBookScreen extends StatefulWidget {
@@ -92,8 +93,13 @@ class _RemoteBookScreenState extends State<RemoteBookScreen> {
         final info = _parser.extractBookInfo(content, file);
         chapters = _parser.parseChapters(content);
         book = Book(name: info['name'] ?? file, author: info['author'] ?? '未知', intro: info['intro'], origin: 'local', originName: '本地书籍', noteUrl: 'local://${local.path}', bookUrl: 'local://${local.path}', type: 1, lastChapter: chapters.isNotEmpty ? chapters.last.title : null, wordCount: content.length);
+      } else if (lower.endsWith('.mobi') || lower.endsWith('.azw') || lower.endsWith('.umd')) {
+        // MOBI/AZW/UMD 走统一导入服务
+        final res = await ImportBookService().importPath(local.path);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('《${res.book.name}》导入成功，共 ${res.chapterCount} 章')));
+        return;
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('《$file》已保存到 books 目录（该格式暂不支持解析）')));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('《$file》已保存到 books 目录（ZIP 请解压后导入）')));
         return;
       }
       await _db.insertBook(book);

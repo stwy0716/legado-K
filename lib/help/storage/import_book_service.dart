@@ -5,6 +5,7 @@ import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/help/source/txt_parser.dart';
 import 'package:legado_md3/help/storage/epub_parser.dart';
 import 'package:legado_md3/help/storage/umd_parser.dart';
+import 'package:legado_md3/help/storage/mobi_parser.dart';
 
 /// 本地书籍导入结果
 class ImportResult {
@@ -18,7 +19,7 @@ class ImportBookService {
   final DatabaseService _db = DatabaseService();
   final TxtParserService _txt = TxtParserService();
 
-  static const supported = ['txt', 'epub', 'umd'];
+  static const supported = ['txt', 'epub', 'umd', 'mobi', 'azw'];
 
   Future<ImportResult> importPath(String path) async {
     final file = File(path);
@@ -59,6 +60,12 @@ class ImportBookService {
         ..noteUrl = 'local://$path'
         ..bookUrl = 'local://$path'
         ..type = 1;
+      chapters = res.chapters;
+      book.lastChapter = chapters.isNotEmpty ? chapters.last.title : null;
+    } else if (ext == 'mobi' || ext == 'azw') {
+      final res = await MobiParser.parse(path);
+      if (res == null) throw 'MOBI 解析失败（仅支持 KF7/PalmDOC，KF8 高压缩请先转 EPUB）';
+      book = res.book;
       chapters = res.chapters;
       book.lastChapter = chapters.isNotEmpty ? chapters.last.title : null;
     } else {

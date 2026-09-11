@@ -49,7 +49,7 @@ class EpubParser {
     }
   }
 
-  /// 解析EPUB目录
+  /// 解析EPUB目录（同时支持 EPUB2 toc.ncx 与 EPUB3 nav.xhtml）
   static Future<List<BookChapter>> parseToc(String filePath) async {
     try {
       final file = File(filePath);
@@ -57,25 +57,39 @@ class EpubParser {
 
       final bytes = await file.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes);
-
-      // 查找toc.ncx
-      final tocFile = archive.files.where((f) => f.name.endsWith('toc.ncx')).toList();
-      if (tocFile.isEmpty) return [];
-
-      final tocContent = String.fromCharCodes(tocFile.first.content as List<int>);
-
-      // 解析navPoint
-      final navPoints = RegExp(r'<navPoint[^>]*id="([^"]*)"[^>]*>.*?<text>([^<]+)</text>.*?<content src="([^"]+)"', dotAll: true).allMatches(tocContent);
-
       final chapters = <BookChapter>[];
       var index = 0;
-      for (final match in navPoints) {
-        chapters.add(BookChapter(
-          title: match.group(2) ?? '第${index + 1}章',
-          url: match.group(3) ?? '',
-          index: index++,
-          isVolume: false,
-        ));
+
+      // 1) EPUB2: toc.ncx
+      final ncx = archive.files.where((f) => f.name.endsWith('toc.ncx')).toList();
+      if (ncx.isNotEmpty) {
+        final tocContent = String.fromCharCodes(ncx.first.content as List<int>);
+        final navPoints = RegExp(r'<navPoint[^>]*>.*?<text>([^<]+)</text>.*?<content src="([^"]+)"', dotAll: true).allMatches(tocContent);
+        for (final match in navPoints) {
+          chapters.add(BookChapter(
+            title: match.group(1) ?? '第${index + 1}章',
+            url: (match.group(2) ?? '').split('#').first,
+            index: index++,
+            isVolume: false,
+          ));
+        }
+      }
+
+      // 2) EPUB3: nav.xhtml / nav.html（toc.ncx 缺失或为空时兜底）
+      if (chapters.isEmpty) {
+        final nav = archive.files.where((f) => f.name.endsWith('nav.xhtml') || f.name.endsWith('nav.html') || f.name.endsWith('nav.xht')).toList();
+        if (nav.isNotEmpty) {
+          final navContent = String.fromCharCodes(nav.first.content as List<int>);
+          // 取 epub:type="toc" 区域内的链接（若无则取全部 nav 链接）
+          final tocRegion = RegExp(r'<nav[^>]*epub:type="toc"[^>]*>(.*?)</nav>', dotAll: true).firstMatch(navContent)?.group(1) ?? navContent;
+          final links = RegExp(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', dotAll: true).allMatches(tocRegion);
+          for (final match in links) {
+            final title = match.group(2)?.replaceAll(RegExp(r'<[^>]+>'), '')?.trim() ?? '';
+            final href = (match.group(1) ?? '').split('#').first;
+            if (title.isEmpty || href.isEmpty) continue;
+            chapters.add(BookChapter(title: title, url: href, index: index++, isVolume: false));
+          }
+        }
       }
 
       return chapters;
@@ -89,24 +103,35 @@ class EpubParser {
     try {
       final file = File(filePath);
       if (!await file.exists()) return null;
+      // 去掉锚点，取相对文件名用于匹配
+      final target = chapterUrl.split('#').first.split('/').last;
 
       final bytes = await file.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes);
 
-      // 查找章节文件
-      final chapterFile = archive.files.where((f) => f.name.endsWith(chapterUrl) || f.name.contains(chapterUrl)).toList();
-      if (chapterFile.isEmpty) return null;
+      // 查找章节文件（精确 basename 优先，其次包含匹配）
+      var candidates = archive.files.where((f) => f.name.split('/').last == target).toList();
+      if (candidates.isEmpty) candidates = archive.files.where((f) => f.name.endsWith(target) || f.name.contains(chapterUrl.split('#').first)).toList();
+      if (candidates.isEmpty) return null;
 
-      final content = String.fromCharCodes(chapterFile.first.content as List<int>);
+      var content = String.fromCharCodes(candidates.first.content as List<int>);
 
       // 提取正文（去除HTML标签）
       final bodyMatch = RegExp(r'<body[^>]*>(.*?)</body>', dotAll: true).firstMatch(content);
       var text = bodyMatch?.group(1) ?? content;
 
-      // 去除HTML标签
-      text = text.replaceAll(RegExp(r'<[^>]+>'), '\n');
-      text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
-      text = text.trim();
+      // 块级标签转换行
+      text = text.replaceAll(RegExp(r'</(p|div|h[1-6]|li|blockquote)>', caseSensitive: false), '\n');
+      text = text.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
+      // 去除其余HTML标签
+      text = text.replaceAll(RegExp(r'<[^>]+>'), '');
+      // 常见 HTML 实体
+      text = text
+          .replaceAll('&nbsp;', ' ').replaceAll('&amp;', '&').replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&#39;', "'")
+          .replaceAll('&hellip;', '…').replaceAll('&mdash;', '—').replaceAll('&ndash;', '–');
+      text = text.replaceAll(RegExp(r'&#(\d+);'), (m) => String.fromCharCode(int.parse(m.group(1)!)));
+      text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
 
       return text;
     } catch (e) {
