@@ -26,16 +26,29 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   List<Map<String, String>> _exploreItems = [];
   List<SearchBook> _exploreBooks = [];
   bool _isLoadingBooks = false;
+  String? _currentExploreUrl;
+  int _explorePage = 1;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _scrollController.addListener(_onScroll);
     _loadSources();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 300) {
+      _loadMoreExplore();
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -75,17 +88,52 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     if (items.length == 1) _loadExploreBooks(items.first['url']!);
   }
 
+  /// 将发现 URL 中的 {{page}} / {{page-1}} 替换为实际页码
+  String _applyPage(String url, int page) {
+    var u = url.replaceAll('{{page-1}}', '${page - 1}');
+    u = u.replaceAll('{{ page - 1 }}', '${page - 1}');
+    u = u.replaceAll('{{page}}', '$page');
+    u = u.replaceAll('{{ page }}', '$page');
+    return u;
+  }
+
   Future<void> _loadExploreBooks(String url) async {
     if (_selectedSource == null) return;
-    setState(() => _isLoadingBooks = true);
+    _currentExploreUrl = url;
+    _explorePage = 1;
+    _hasMore = true;
+    setState(() { _isLoadingBooks = true; _exploreBooks = []; });
+    await _fetchExplore(append: false);
+  }
+
+  Future<void> _loadMoreExplore() async {
+    if (_loadingMore || _isLoadingBooks || !_hasMore || _currentExploreUrl == null) return;
+    final url = _currentExploreUrl!;
+    // URL 不含分页占位符时无法继续翻页
+    if (!url.contains('{{page') && !url.contains('{{ page')) { _hasMore = false; return; }
+    _explorePage++;
+    await _fetchExplore(append: true);
+  }
+
+  Future<void> _fetchExplore({required bool append}) async {
+    if (_selectedSource == null || _currentExploreUrl == null) return;
+    if (append) setState(() => _loadingMore = true);
     try {
-      final response = await _engine.exploreByUrl(_selectedSource!, url);
-      if (mounted) setState(() {
-        _exploreBooks = response;
+      final reqUrl = _applyPage(_currentExploreUrl!, _explorePage);
+      final response = await _engine.exploreByUrl(_selectedSource!, reqUrl);
+      if (!mounted) return;
+      setState(() {
+        if (append) {
+          _exploreBooks.addAll(response);
+          if (response.isEmpty) { _hasMore = false; _explorePage--; }
+        } else {
+          _exploreBooks = response;
+        }
         _isLoadingBooks = false;
+        _loadingMore = false;
       });
     } catch (e) {
-      if (mounted) setState(() => _isLoadingBooks = false);
+      if (mounted) setState(() { _isLoadingBooks = false; _loadingMore = false; if (append) { _hasMore = false; _explorePage--; } });
     }
   }
 
@@ -227,10 +275,21 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
 
   Widget _buildBooksList() {
     return ListView.separated(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16),
-      itemCount: _exploreBooks.length,
+      itemCount: _exploreBooks.length + 1,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
+        if (index == _exploreBooks.length) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: _loadingMore
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(!_hasMore && _exploreBooks.isNotEmpty ? '没有更多了' : '', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ),
+          );
+        }
         final book = _exploreBooks[index];
         return Card(
           child: ListTile(

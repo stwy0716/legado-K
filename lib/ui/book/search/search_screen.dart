@@ -78,6 +78,13 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     final sources = await _db.getAllSources(enabled: true);
+    if (sources.isEmpty) {
+      if (mounted) {
+        setState(() => _isSearching = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('没有启用的书源，请先在「书源管理」中导入并启用书源')));
+      }
+      return;
+    }
     _totalSources = sources.length;
     final selectedSources = _selectedSources.isEmpty
         ? sources

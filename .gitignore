@@ -49,3 +49,7 @@ ios/.symlinks/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 ios/Runner.xcworkspace/xcuserdata/
+
+# 构建产物
+release_apk/
+*.apk

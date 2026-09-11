@@ -248,6 +248,27 @@ class JsMiniEvaluator {
   }
 
   // ---- 基础工具 ----
+  /// 从 s[start]=='/' 起扫描正则字面量，返回结束下标（含 flags）；非正则返回 null
+  int? _scanRegex(String s, int start) {
+    if (start >= s.length || s[start] != '/') return null;
+    var i = start + 1;
+    var inClass = false;
+    while (i < s.length) {
+      final c = s[i];
+      if (c == '\\') { i += 2; continue; }
+      if (c == '[') inClass = true;
+      if (c == ']') inClass = false;
+      if (c == '/' && !inClass) {
+        i++;
+        while (i < s.length && RegExp(r'[a-z]').hasMatch(s[i])) { i++; }
+        return i;
+      }
+      if (c == '\n') return null;
+      i++;
+    }
+    return null;
+  }
+
   List<String> _splitPlus(String expr) {
     final out = <String>[];
     final buf = StringBuffer();
@@ -262,6 +283,11 @@ class JsMiniEvaluator {
         continue;
       }
       if (ch == "'" || ch == '"' || ch == '`') { q = ch; buf.write(ch); continue; }
+      // 正则字面量内的 + 不作为拼接符
+      if (ch == '/' && i + 1 < expr.length && expr[i + 1] != '/' && expr[i + 1] != '*') {
+        final re = _scanRegex(expr, i);
+        if (re != null) { buf.write(expr.substring(i, re)); i = re - 1; continue; }
+      }
       if (ch == '(' || ch == '[') depth++;
       if (ch == ')' || ch == ']') depth--;
       if (ch == '+' && depth == 0) { out.add(buf.toString()); buf.clear(); continue; }
@@ -285,6 +311,11 @@ class JsMiniEvaluator {
         continue;
       }
       if (ch == "'" || ch == '"' || ch == '`') { q = ch; buf.write(ch); continue; }
+      // 正则字面量内的括号/逗号不作为参数分隔
+      if (ch == '/' && i + 1 < s.length && s[i + 1] != '/' && s[i + 1] != '*') {
+        final re = _scanRegex(s, i);
+        if (re != null) { buf.write(s.substring(i, re)); i = re - 1; continue; }
+      }
       if (ch == '(') { depth++; if (depth == 1) { buf.clear(); continue; } }
       if (ch == ')') {
         depth--;
