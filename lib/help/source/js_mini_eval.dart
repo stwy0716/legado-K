@@ -103,6 +103,31 @@ class JsMiniEvaluator {
     if (expr == 'false') return false;
     if (expr == 'null') return null;
 
+    // 全局函数 fn(arg)
+    final gf = RegExp(r'^(decodeURIComponent|encodeURIComponent|unescape|escape|parseInt|parseFloat|String|Number|Boolean)\(([\s\S]*)\)$').firstMatch(expr);
+    if (gf != null) {
+      final fn = gf.group(1)!;
+      final inner = gf.group(2)!.trim();
+      final v = _evalExpr(inner);
+      switch (fn) {
+        case 'decodeURIComponent': case 'unescape': return _uriDecode(_toStr(v));
+        case 'encodeURIComponent': case 'escape': return Uri.encodeComponent(_toStr(v));
+        case 'parseInt': return int.tryParse(RegExp(r'-?\d+').firstMatch(_toStr(v))?.group(0) ?? '');
+        case 'parseFloat': return double.tryParse(RegExp(r'-?\d+(\.\d+)?').firstMatch(_toStr(v))?.group(0) ?? '');
+        case 'String': return _toStr(v);
+        case 'Number': return num.tryParse(_toStr(v));
+        case 'Boolean': return v == true || _toStr(v) == 'true';
+      }
+    }
+
+    // 三元表达式 cond ? a : b（顶层、不在字符串内）
+    final triple = _splitTernary(expr);
+    if (triple != null) {
+      final c = _evalExpr(triple.$1);
+      final truthy = c is bool ? c : (_toStr(c).isNotEmpty && c != 'false' && c != '0');
+      return _evalExpr(truthy ? triple.$2 : triple.$3);
+    }
+
     // 字符串拼接 a + b + ...
     if (expr.contains('+')) {
       final parts = _splitPlus(expr);
@@ -205,7 +230,18 @@ class JsMiniEvaluator {
         final re = _toRegex(args.isNotEmpty ? args[0] : '');
         if (re == null) return null;
         final m = re.firstMatch(str);
-        return m == null ? null : (m.groupCount >= 1 ? (m.group(1) ?? m.group(0)) : m.group(0));
+        if (m == null) return null;
+        // 返回 [group0, group1, ...]，支持 match(...)[1] 取捕获组；直接用时 _toStr 取 group0
+        final groups = <String>[for (var g = 0; g <= m.groupCount; g++) m.group(g) ?? ''];
+        return groups;
+      case 'test':
+        final re = _toRegex(args.isNotEmpty ? args[0] : '');
+        return re != null && re.hasMatch(str);
+      case 'exec':
+        final re = _toRegex(args.isNotEmpty ? args[0] : '');
+        if (re == null) return null;
+        final m = re.firstMatch(str);
+        return m == null ? null : <String>[for (var g = 0; g <= m.groupCount; g++) m.group(g) ?? ''];
       case 'matchAll':
         final re = _toRegex(args.isNotEmpty ? args[0] : '');
         return re == null ? const [] : re.allMatches(str).map((m) => m.group(0)!).toList();
@@ -231,10 +267,29 @@ class JsMiniEvaluator {
     // /regex/flags
     if (search is String && search.startsWith('/')) {
       final re = _toRegex(search);
-      if (re != null) return str.replaceAll(re, replacement);
+      if (re != null) {
+        // 支持替换串中的 $1 $2 ... $&（整匹配）
+        String fill(Match m) {
+          var out = replacement;
+          out = out.replaceAllMapped(RegExp(r'\$(\d+|&)'), (mm) {
+            final t = mm.group(1)!;
+            if (t == '&') return m.group(0) ?? '';
+            final gi = int.parse(t);
+            return gi >= 0 && gi <= m.groupCount ? (m.group(gi) ?? '') : mm.group(0)!;
+          });
+          return out;
+        }
+        return global ? str.replaceAllMapped(re, fill) : _replaceFirstMapped(str, re, fill);
+      }
     }
     final from = _toStr(search);
     return global ? str.replaceAll(from, replacement) : str.replaceFirst(from, replacement);
+  }
+
+  String _replaceFirstMapped(String str, RegExp re, String Function(Match) fill) {
+    final m = re.firstMatch(str);
+    if (m == null) return str;
+    return str.substring(0, m.start) + fill(m) + str.substring(m.end);
   }
 
   RegExp? _toRegex(dynamic v) {
@@ -358,7 +413,48 @@ class JsMiniEvaluator {
 
   String _jsonEncodeLoose(dynamic v) => jsonEncode(v);
 
-  String _toStr(dynamic v) => v == null ? '' : v.toString();
+  /// 兼容 decodeURIComponent 与 JS unescape（%xx 与 %uXXXX）
+  String _uriDecode(String s) {
+    try { return Uri.decodeComponent(s); } catch (_) {}
+    try {
+      return s.replaceAllMapped(RegExp(r'%u([0-9a-fA-F]{4})|%([0-9a-fA-F]{2})'), (m) {
+        if (m.group(1) != null) return String.fromCharCode(int.parse(m.group(1)!, radix: 16));
+        return String.fromCharCode(int.parse(m.group(2)!, radix: 16));
+      });
+    } catch (_) { return s; }
+  }
+
+  /// 切分顶层三元 cond ? a : b；忽略字符串/正则/括号；无 ? 返回 null
+  (String, String, String)? _splitTernary(String expr) {
+    String? q;
+    var depth = 0;
+    int? qPos, cPos;
+    for (var i = 0; i < expr.length; i++) {
+      final ch = expr[i];
+      if (q != null) {
+        if (ch == '\\') { i++; continue; }
+        if (ch == q) q = null;
+        continue;
+      }
+      if (ch == "'" || ch == '"' || ch == '`') { q = ch; continue; }
+      if (ch == '/' && i + 1 < expr.length && expr[i + 1] != '/' && expr[i + 1] != '*') {
+        final re = _scanRegex(expr, i);
+        if (re != null) { i = re - 1; continue; }
+      }
+      if (ch == '(' || ch == '[' || ch == '{') depth++;
+      if (ch == ')' || ch == ']' || ch == '}') depth--;
+      if (depth == 0 && ch == '?' && qPos == null) qPos = i;
+      if (depth == 0 && ch == ':' && qPos != null) { cPos = i; break; }
+    }
+    if (qPos == null || cPos == null) return null;
+    return (expr.substring(0, qPos).trim(), expr.substring(qPos + 1, cPos).trim(), expr.substring(cPos + 1).trim());
+  }
+
+  String _toStr(dynamic v) {
+    if (v == null) return '';
+    if (v is List) return v.isEmpty ? '' : v.first.toString(); // match() 直接取 group0
+    return v.toString();
+  }
 }
 
 class _Parens { final List<String> args; final int end; _Parens(this.args, this.end); }
