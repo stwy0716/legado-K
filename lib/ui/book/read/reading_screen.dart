@@ -364,6 +364,15 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                     ),
                     _buildTopMenu(),
                     _buildBottomMenu(),
+                    // 护眼模式：暖黄色遮罩（不拦截点击）
+                    if (config.eyeProtection)
+                      IgnorePointer(
+                        child: Positioned.fill(
+                          child: Container(
+                            color: const Color(0xFFFFF1D6).withOpacity((config.eyeProtectionLevel.clamp(0, 100) / 100) * 0.35),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

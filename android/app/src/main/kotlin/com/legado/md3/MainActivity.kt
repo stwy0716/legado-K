@@ -39,7 +39,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun resolveIntent(intent: Intent?): String? {
-        val uri: Uri? = intent?.data ?: return null
+        val uri: Uri = intent?.data ?: return null
         return try {
             when (uri.scheme) {
                 "file" -> uri.path
