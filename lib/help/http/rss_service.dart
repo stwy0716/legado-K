@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:legado_md3/data/model/rss_source.dart';

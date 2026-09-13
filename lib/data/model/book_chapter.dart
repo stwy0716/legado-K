@@ -19,6 +19,19 @@ class BookChapter {
     this.variable,
   });
 
+  /// 序列化为章节自身字段（Web 调试接口 / 导出用，不含书籍外键）
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'url': url,
+    'index': index,
+    'isVolume': isVolume,
+    'content': content,
+    'startPos': startPos,
+    'endPos': endPos,
+    'variable': variable,
+  };
+
+  // 数据库列名（"index" 为 SQL 保留字，落库统一用 chapter_index）
   Map<String, dynamic> toMap(String bookName, String bookAuthor) => {
     'bookName': bookName,
     'bookAuthor': bookAuthor,
@@ -26,6 +39,8 @@ class BookChapter {
     'url': url,
     'chapter_index': index,
     'isVolume': isVolume ? 1 : 0,
+    'tag': null,
+    'resourceUrl': null,
     'content': content,
     'start_pos': startPos,
     'end_pos': endPos,

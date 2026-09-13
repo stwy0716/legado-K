@@ -4,8 +4,6 @@ import 'package:legado_md3/help/storage/import_book_service.dart';
 import 'package:legado_md3/help/storage/auto_update_service.dart';
 import 'package:provider/provider.dart';
 import 'package:legado_md3/di/book_provider.dart';
-import 'package:legado_md3/constant/app_theme.dart';
-import 'package:legado_md3/ui/main/home/home_screen.dart';
 import 'package:legado_md3/ui/main/bookshelf/bookshelf_screen.dart';
 import 'package:legado_md3/ui/main/discover/discover_screen.dart';
 import 'package:legado_md3/ui/main/subscribe/subscribe_screen.dart';

@@ -46,7 +46,7 @@ class _CacheManageScreenState extends State<CacheManageScreen> {
       ),
     );
     if (confirmed == true) {
-      await _db.clearChapterContent();
+      await _db.clearBookChapterContent(book.name, book.author);
       _loadCache();
     }
   }
@@ -68,9 +68,8 @@ class _CacheManageScreenState extends State<CacheManageScreen> {
       ),
     );
     if (confirmed == true) {
-      for (final book in _books) {
-        await _db.clearChapterContent();
-      }
+      // 清空全部章节正文缓存（与具体书籍无关，执行一次即可）
+      await _db.clearChapterContent();
       _loadCache();
     }
   }

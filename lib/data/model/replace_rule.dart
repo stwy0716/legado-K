@@ -1,3 +1,7 @@
+// ReadRecord 的唯一定义位于 read_record.dart；此处导出以兼容历史引用，
+// 避免出现两个字段不一致的 ReadRecord 类型。
+export 'read_record.dart';
+
 class ReplaceRule {
   int? id;
   String replaceSummary;
@@ -47,53 +51,5 @@ class ReplaceRule {
     isRegex: map['isRegex'] == null ? true : (map['isRegex'] is bool ? map['isRegex'] as bool : (map['isRegex'] as int) != 0),
     scope: (map['scope'] ?? map['scopeContent']) as String?,
     order: map['order_num'] as int? ?? map['order'] as int?,
-  );
-}
-
-class ReadRecord {
-  int? id;
-  String bookName;
-  String author;
-  int? duration; // 阅读时长(秒)
-  int? readDate; // 日期时间戳
-  int? chapterIndex;
-  String? chapterTitle;
-  int? startPos;
-  int? endPos;
-
-  ReadRecord({
-    this.id,
-    required this.bookName,
-    required this.author,
-    this.duration,
-    this.readDate,
-    this.chapterIndex,
-    this.chapterTitle,
-    this.startPos,
-    this.endPos,
-  });
-
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'bookName': bookName,
-    'author': author,
-    'duration': duration,
-    'readDate': readDate,
-    'chapterIndex': chapterIndex,
-    'chapterTitle': chapterTitle,
-    'startPos': startPos,
-    'endPos': endPos,
-  };
-
-  factory ReadRecord.fromMap(Map<String, dynamic> map) => ReadRecord(
-    id: map['id'] as int?,
-    bookName: map['bookName'] as String,
-    author: map['author'] as String,
-    duration: map['duration'] as int?,
-    readDate: map['readDate'] as int?,
-    chapterIndex: map['chapterIndex'] as int?,
-    chapterTitle: map['chapterTitle'] as String?,
-    startPos: map['startPos'] as int?,
-    endPos: map['endPos'] as int?,
   );
 }

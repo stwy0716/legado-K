@@ -45,7 +45,8 @@ class BackupService {
 
     if (includeReadRecords) {
       final records = await _db.getReadRecords();
-      backup['readRecords'] = records;
+      // 必须转成 Map，否则 jsonEncode 遇到 ReadRecord 对象会抛异常
+      backup['readRecords'] = records.map((r) => r.toMap()).toList();
     }
 
     backup['rssSources'] = (await _db.getRssSources()).map((s) => s.toMap()).toList();
@@ -113,6 +114,16 @@ class BackupService {
           } catch (_) {
             result.sourcesFailed++;
           }
+        }
+      }
+
+      // 恢复阅读记录
+      if (backup.containsKey('readRecords') && backup['readRecords'] is List) {
+        for (final m in backup['readRecords']) {
+          try {
+            final r = ReadRecord.fromMap(Map<String, dynamic>.from(m as Map));
+            await _db.addReadRecord(r.bookName, r.author, r.duration, r.date);
+          } catch (_) {}
         }
       }
 

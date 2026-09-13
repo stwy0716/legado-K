@@ -8,14 +8,10 @@ import 'package:legado_md3/data/model/read_record.dart';
 class WebDavService {
   final Dio _dio = Dio();
   String? _baseUrl;
-  String? _username;
-  String? _password;
 
   /// 配置WebDAV
   void configure({required String baseUrl, String? username, String? password}) {
     _baseUrl = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
-    _username = username;
-    _password = password;
     _dio.options.headers = {
       if (username != null && password != null)
         'Authorization': 'Basic ${base64Encode(utf8.encode('$username:$password'))}',

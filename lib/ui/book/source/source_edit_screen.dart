@@ -227,9 +227,9 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
     _variableComment.text = s.variableComment ?? '';
     _jsLib.text = s.jsLib ?? '';
     _enabled = s.enabled;
-    _enabledExplore = s.enabledExplore ?? false;
-    _eventListener = s.eventListener ?? false;
-    _customButton = s.customButton ?? false;
+    _enabledExplore = s.enabledExplore;
+    _eventListener = s.eventListener;
+    _customButton = s.customButton;
     _bookSourceType = s.bookSourceType;
 
     final rs = s.ruleSearch ?? {};
@@ -434,9 +434,9 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
     _variableComment.text = s.variableComment ?? '';
     _jsLib.text = s.jsLib ?? '';
     _enabled = s.enabled;
-    _enabledExplore = s.enabledExplore ?? false;
-    _eventListener = s.eventListener ?? false;
-    _customButton = s.customButton ?? false;
+    _enabledExplore = s.enabledExplore;
+    _eventListener = s.eventListener;
+    _customButton = s.customButton;
     _bookSourceType = s.bookSourceType;
     _searchUrl.text = s.searchUrl ?? '';
     _exploreUrl.text = s.exploreUrl ?? '';

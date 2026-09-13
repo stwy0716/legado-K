@@ -30,7 +30,6 @@ class _TtsPlayerScreenState extends State<TtsPlayerScreen> {
   List<String> _languages = [];
   String? _selectedLanguage;
   Timer? _sleepTimer;
-  int? _sleepTimerMinutes;
   DateTime? _sleepTimerEnd;
 
   @override
@@ -318,7 +317,6 @@ class _TtsPlayerScreenState extends State<TtsPlayerScreen> {
 
   void _setTimer(int minutes) {
     _sleepTimer?.cancel();
-    _sleepTimerMinutes = minutes;
     _sleepTimerEnd = DateTime.now().add(Duration(minutes: minutes));
     _sleepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (DateTime.now().isAfter(_sleepTimerEnd!)) {
@@ -335,7 +333,6 @@ class _TtsPlayerScreenState extends State<TtsPlayerScreen> {
   void _cancelTimer() {
     _sleepTimer?.cancel();
     _sleepTimer = null;
-    _sleepTimerMinutes = null;
     _sleepTimerEnd = null;
     if (mounted) setState(() {});
   }

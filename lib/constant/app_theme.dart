@@ -11,6 +11,9 @@ class AppTheme extends ChangeNotifier {
   Color _seedColor = const Color(0xFF6750A4);
   bool _dynamicColor = true;
   String _fontFamily = '';
+  // 实验室：墨水屏(E-ink)优化——去除页面切换动画、提高对比度
+  bool _eink = false;
+  bool get eink => _eink;
 
   ThemeMode get themeMode => _themeMode;
   Color get seedColor => _seedColor;
@@ -23,6 +26,8 @@ class AppTheme extends ChangeNotifier {
     _seedColor = Color(prefs.getInt(_keySeedColor) ?? 0xFF6750A4);
     _dynamicColor = prefs.getBool(_keyDynamicColor) ?? true;
     _fontFamily = prefs.getString(_keyFontFamily) ?? '';
+    final labOn = prefs.getBool('lab_enabled') ?? false;
+    _eink = labOn && (prefs.getBool('lab_eink') ?? false);
     notifyListeners();
   }
 
@@ -54,11 +59,20 @@ class AppTheme extends ChangeNotifier {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: _seedColor,
       brightness: brightness,
+      // 墨水屏模式提高对比度
+      contrastLevel: _eink ? 0.5 : 0.0,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
+      // 墨水屏模式去除页面切换动画，减少残影
+      pageTransitionsTheme: _eink
+          ? const PageTransitionsTheme(builders: {
+              TargetPlatform.android: _NoTransitionsBuilder(),
+              TargetPlatform.iOS: _NoTransitionsBuilder(),
+            })
+          : null,
       scaffoldBackgroundColor: colorScheme.surface,
       appBarTheme: AppBarTheme(
         backgroundColor: colorScheme.surface,
@@ -178,4 +192,19 @@ class AppTheme extends ChangeNotifier {
       ),
     );
   }
+}
+
+/// 无页面切换动画（墨水屏模式），直接显示目标页面
+class _NoTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) =>
+      child;
 }

@@ -20,11 +20,8 @@ import 'package:legado_md3/ui/config/cloud_tts_screen.dart';
 import 'package:legado_md3/ui/cache/cache_manage_screen.dart';
 import 'package:legado_md3/ui/backup/backup_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/constant/app_theme.dart';
 import 'package:legado_md3/data/local/app_database.dart';
-import 'package:legado_md3/ui/backup/backup_screen.dart';
-import 'package:legado_md3/ui/cache/cache_manage_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -51,7 +48,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _cacheSize = '0 MB';
   bool _autoNextPage = false;
   bool _translateEnabled = false;
-  bool _mangaEnabled = true;
   bool _simulateReading = false;
   bool _boldText = false;
   bool _showStatusBar = true;
@@ -88,7 +84,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _landscapeLock = _prefs?.getBool('landscape_lock') ?? false;
       _autoNextPage = _prefs?.getBool('auto_next_page') ?? false;
       _translateEnabled = _prefs?.getBool('translate_enabled') ?? false;
-      _mangaEnabled = _prefs?.getBool('manga_enabled') ?? true;
       _simulateReading = _prefs?.getBool('simulate_reading') ?? false;
       _boldText = _prefs?.getBool('bold_text') ?? false;
       _showStatusBar = _prefs?.getBool('show_status_bar') ?? true;
@@ -446,12 +441,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // 实验室
           _buildSectionHeader('实验室'),
           SwitchListTile(
-            title: const Text('漫画阅读'),
-            subtitle: const Text('启用漫画阅读模式'),
-            value: _mangaEnabled,
-            onChanged: (v) async { await _prefs?.setBool('manga_enabled', v); setState(() => _mangaEnabled = v); },
-          ),
-          SwitchListTile(
             title: const Text('模拟阅读'),
             subtitle: const Text('自动模拟翻页阅读'),
             value: _simulateReading,
@@ -636,8 +625,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
           FilledButton(onPressed: () async {
             final db = DatabaseService();
-            final books = await db.getAllBooks();
-            for (final book in books) { await db.clearChapterContent(); }
+            await db.clearChapterContent();
             if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除'))); }
           }, child: const Text('清除')),
         ],

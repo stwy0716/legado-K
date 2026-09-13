@@ -82,7 +82,7 @@ class JsonPath {
         if (idx == '*') {
           segs.add(_Seg(_SegType.wildcard, '*'));
         } else if (int.tryParse(idx) != null) {
-          segs.add(_Seg(_SegType.index, idx));
+          segs.add(_Seg(_SegType.idx, idx));
         } else {
           segs.add(_Seg(_SegType.key, idx.replaceAll(RegExp('[\'"]'), '')));
         }
@@ -96,7 +96,7 @@ class JsonPath {
       case _SegType.key:
         if (node is Map && node.containsKey(seg.value)) return [node[seg.value]];
         return [];
-      case _SegType.index:
+      case _SegType.idx:
         if (node is List) {
           final i = int.parse(seg.value);
           final idx = i < 0 ? node.length + i : i;
@@ -124,7 +124,7 @@ class JsonPath {
   }
 }
 
-enum _SegType { key, index, wildcard }
+enum _SegType { key, idx, wildcard }
 
 class _Seg {
   final _SegType type;

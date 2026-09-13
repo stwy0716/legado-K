@@ -36,14 +36,6 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  static const List<Map<String, dynamic>> _layouts = [
-    {'name': '列表', 'icon': Icons.view_list},
-    {'name': '紧凑列表', 'icon': Icons.view_agenda},
-    {'name': '网格', 'icon': Icons.grid_view},
-    {'name': '紧凑网格', 'icon': Icons.grid_on},
-    {'name': '封面网格', 'icon': Icons.photo_library},
-  ];
-
   static const List<String> _sortOptions = ['智能排序', '书名', '作者', '最近阅读', '添加时间', '字数'];
   int _sortBy = 0;
   bool _sortAsc = true;
@@ -74,7 +66,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     switch (_sortBy) {
       case 1: books.sort((a, b) => _sortAsc ? a.name.compareTo(b.name) : b.name.compareTo(a.name)); break;
       case 2: books.sort((a, b) => _sortAsc ? a.author.compareTo(b.author) : b.author.compareTo(a.author)); break;
-      case 3: books.sort((a, b) => _sortAsc ? (a.durChapterTime ?? 0).compareTo(b.durChapterTime ?? 0) : (b.durChapterTime ?? 0).compareTo(a.durChapterTime ?? 0)); break;
+      case 3: books.sort((a, b) => _sortAsc ? a.durChapterTime.compareTo(b.durChapterTime) : b.durChapterTime.compareTo(a.durChapterTime)); break;
       case 4: books.sort((a, b) => _sortAsc ? (a.lastCheckTime ?? 0).compareTo(b.lastCheckTime ?? 0) : (b.lastCheckTime ?? 0).compareTo(a.lastCheckTime ?? 0)); break;
       case 5: books.sort((a, b) => _sortAsc ? (a.wordCount ?? 0).compareTo(b.wordCount ?? 0) : (b.wordCount ?? 0).compareTo(a.wordCount ?? 0)); break;
     }
@@ -107,22 +99,6 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     await provider.loadBooks();
     setState(() => _isUpdating = false);
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('更新完成，$updated 本有新章节')));
-  }
-
-  void _showLayoutDialog() {
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: const Text('书架布局'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: List.generate(_layouts.length, (index) {
-        final layout = _layouts[index];
-        final isSelected = Provider.of<BookProvider>(context).bookshelfLayout == index;
-        return ListTile(
-          leading: Icon(layout['icon']),
-          title: Text(layout['name']),
-          trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
-          onTap: () { Provider.of<BookProvider>(context, listen: false).setBookshelfLayout(index); Navigator.pop(context); },
-        );
-      })),
-    ));
   }
 
   void _showSortDialog() {

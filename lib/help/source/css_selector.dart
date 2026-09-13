@@ -7,21 +7,25 @@ class CssSelector {
   /// 解析 HTML 字符串为文档
   static dom.Document parse(String html) => html_parser.parse(html);
 
-  /// 选择多个元素
-  static List<dom.Element> selectAll(dom.Element? scope, String selector) {
+  /// 在节点（Document 或 Element）下选择多个元素
+  static List<dom.Element> selectAll(dom.Node? scope, String selector) {
     if (scope == null) return [];
     try {
-      return scope.querySelectorAll(selector);
+      if (scope is dom.Document) return scope.querySelectorAll(selector);
+      if (scope is dom.Element) return scope.querySelectorAll(selector);
+      return [];
     } catch (_) {
       return [];
     }
   }
 
-  /// 选择单个元素
-  static dom.Element? selectOne(dom.Element? scope, String selector) {
+  /// 在节点（Document 或 Element）下选择单个元素
+  static dom.Element? selectOne(dom.Node? scope, String selector) {
     if (scope == null) return null;
     try {
-      return scope.querySelector(selector);
+      if (scope is dom.Document) return scope.querySelector(selector);
+      if (scope is dom.Element) return scope.querySelector(selector);
+      return null;
     } catch (_) {
       return null;
     }

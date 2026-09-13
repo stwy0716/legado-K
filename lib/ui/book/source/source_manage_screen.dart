@@ -65,7 +65,7 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
     // 排序
     result = List.from(result);
     switch (_sortBy) {
-      case 1: result.sort((a, b) => _sortAsc ? (a.weight ?? 0).compareTo(b.weight ?? 0) : (b.weight ?? 0).compareTo(a.weight ?? 0)); break;
+      case 1: result.sort((a, b) => _sortAsc ? a.weight.compareTo(b.weight) : b.weight.compareTo(a.weight)); break;
       case 2: result.sort((a, b) => _sortAsc ? a.bookSourceName.compareTo(b.bookSourceName) : b.bookSourceName.compareTo(a.bookSourceName)); break;
       case 3: result.sort((a, b) => _sortAsc ? a.bookSourceUrl.compareTo(b.bookSourceUrl) : b.bookSourceUrl.compareTo(a.bookSourceUrl)); break;
       case 4: result.sort((a, b) => _sortAsc ? (a.lastUpdateTime ?? 0).compareTo(b.lastUpdateTime ?? 0) : (b.lastUpdateTime ?? 0).compareTo(a.lastUpdateTime ?? 0)); break;

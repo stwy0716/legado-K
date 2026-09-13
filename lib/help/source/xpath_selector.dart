@@ -14,7 +14,12 @@ class XpathSelector {
   /// 从 HTML 字符串按 xpath 提取字符串列表
   static List<String> selectText(String html, String xpath) {
     final doc = html_parser.parse(html);
-    final nodes = selectNodes(doc, xpath);
+    return selectTextFromNode(doc, xpath);
+  }
+
+  /// 从已解析节点按 xpath 提取字符串列表
+  static List<String> selectTextFromNode(dom.Node root, String xpath) {
+    final nodes = selectNodes(root, xpath);
     return nodes.map(_nodeToString).where((s) => s.isNotEmpty).toList();
   }
 
@@ -113,7 +118,8 @@ class XpathSelector {
       tag = predMatch.group(1) ?? raw;
       final pred = predMatch.group(2);
       if (pred != null) {
-        final attrM = RegExp(r"@?([\w-]+)\s*(?:=|contains\()\s*'?([^'\)]*)'?\)?").firstMatch(pred);
+        // 支持 @attr='x' / @attr="x" / contains(@attr,'x') / contains(@attr,"x")
+        final attrM = RegExp(r'''@?([\w-]+)\s*(?:=|contains\()\s*['"]?([^'"\)]*)['"]?\)?''').firstMatch(pred);
         if (attrM != null && pred.contains('@')) {
           attrKey = attrM.group(1);
           attrVal = attrM.group(2);

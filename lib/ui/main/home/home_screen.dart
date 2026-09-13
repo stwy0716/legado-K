@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:legado_md3/ui/book/source/source_manage_screen.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/data/model/book.dart';
 import 'package:legado_md3/data/model/read_record.dart';
-import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/data/local/app_database.dart';
-import 'package:legado_md3/help/readaloud/reading_record.dart';
 import 'package:legado_md3/ui/book/search/search_screen.dart';
 import 'package:legado_md3/ui/book/read/reading_screen.dart';
 import 'package:legado_md3/ui/book/detail/book_detail_screen.dart';
 import 'package:legado_md3/data/model/homepage_module.dart';
 import 'package:legado_md3/ui/main/homepage/homepage_manage_screen.dart';
+import 'package:legado_md3/ui/main/discover/explore_books_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,8 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // 加载最近阅读的书籍
     final books = await _db.getAllBooks();
-    _recentBooks = books.where((b) => (b.durChapterTime ?? 0) > 0).toList()
-      ..sort((a, b) => (b.durChapterTime ?? 0).compareTo(a.durChapterTime ?? 0));
+    _recentBooks = books.where((b) => b.durChapterTime > 0).toList()
+      ..sort((a, b) => b.durChapterTime.compareTo(a.durChapterTime));
     if (_recentBooks.length > 6) _recentBooks = _recentBooks.sublist(0, 6);
 
     // 加载阅读记录
@@ -209,6 +207,40 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 打开首页模块：解析关联书源与发现地址，跳转到发现书籍列表
+  Future<void> _openModule(HomepageModule module) async {
+    final sourceUrl = module.sourceUrl;
+    if (sourceUrl == null || sourceUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('该模块尚未关联书源，请先在首页管理中配置')));
+      return;
+    }
+    final source = await _db.getSource(sourceUrl);
+    if (source == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('关联书源不存在或已删除')));
+      return;
+    }
+    // 优先用模块自带发现地址；否则取书源发现分类的第一个
+    var exploreUrl = module.exploreUrl;
+    if ((exploreUrl == null || exploreUrl.isEmpty) && source.exploreUrl != null) {
+      final firstLine = source.exploreUrl!.split(RegExp(r'\n')).first;
+      final firstOpt = firstLine.split('&&&').first;
+      final idx = firstOpt.indexOf(':::');
+      exploreUrl = idx >= 0 ? firstOpt.substring(idx + 3) : firstOpt;
+      // 兼容旧的 :: 分隔
+      if (!exploreUrl.contains('http') && firstOpt.contains('::')) {
+        final j = firstOpt.indexOf('::');
+        exploreUrl = firstOpt.substring(j + 2);
+      }
+    }
+    if (exploreUrl == null || exploreUrl.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('该书源没有可用的发现地址')));
+      return;
+    }
+    if (mounted) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ExploreBooksScreen(source: source, exploreUrl: exploreUrl!, title: module.name)));
+    }
+  }
+
   Widget _buildModuleCard(HomepageModule module) {
     IconData icon;
     Color color;
@@ -228,9 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(module.name),
         subtitle: Text(module.sourceUrl ?? '点击配置书源'),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('模块: ${module.name}')));
-        },
+        onTap: () => _openModule(module),
       ),
     );
   }
