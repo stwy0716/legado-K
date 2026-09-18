@@ -43,7 +43,8 @@ class TtsService {
   Future<void> init() async {
     if (_isInitialized) return;
     try {
-      await _flutterTts.setLanguage('zh-CN');
+      await _flutterTts.setLanguage(_language ?? 'zh-CN');
+      if (_engine != null) await _flutterTts.setEngine(_engine!);
       await _flutterTts.setSpeechRate(_speechRate);
       await _flutterTts.setPitch(_speechPitch);
       await _flutterTts.setVolume(_volume);
@@ -276,6 +277,16 @@ class TtsService {
     _language = lang;
     if (_isInitialized) await _flutterTts.setLanguage(lang);
   }
+
+  /// 设置系统 TTS 引擎
+  Future<void> setEngine(String engine) async {
+    _engine = engine;
+    if (_isInitialized) await _flutterTts.setEngine(engine);
+  }
+
+  /// 当前语言/引擎（供界面回显）
+  String? get language => _language;
+  String? get engineName => _engine;
 
   /// 获取可用语言
   Future<List<String>> getLanguages() async {

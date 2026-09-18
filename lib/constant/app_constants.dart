@@ -4,7 +4,7 @@ class AppConstants {
 
   static const String appName = 'Legado';
   static const String appVersion = '3.26.7';
-  static const String appVersionCode = 32607;
+  static const int appVersionCode = 32607;
 
   static const String defaultUserAgent =
       'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36';

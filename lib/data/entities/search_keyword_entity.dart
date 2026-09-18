@@ -1,1 +1,1 @@
-export '../model/search_keyword.dart';
+export '../model/search_content_history.dart';

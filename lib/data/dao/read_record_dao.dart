@@ -1,5 +1,5 @@
 import '../local/app_database.dart';
-import '../model/replace_rule.dart';
+import '../model/read_record.dart';
 
 class ReadRecordDao {
   final DatabaseService _db;

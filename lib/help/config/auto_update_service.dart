@@ -1,9 +1,8 @@
 import 'package:collection/collection.dart';
 import 'package:legado_md3/data/model/book.dart';
-import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
-import 'database_service.dart';
-import 'book_source_engine.dart';
+import 'package:legado_md3/data/local/app_database.dart';
+import 'package:legado_md3/help/source/source_engine.dart';
 
 /// 自动更新服务
 class AutoUpdateService {

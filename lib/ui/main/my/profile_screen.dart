@@ -23,6 +23,7 @@ import 'package:legado_md3/ui/bookmark/book_marking_screen.dart';
 import 'package:legado_md3/ui/config/lab_config_screen.dart';
 import 'package:legado_md3/ui/main/subscribe/subscribe_screen.dart';
 import 'package:legado_md3/help/storage/crash_log_helper.dart';
+import 'package:legado_md3/help/config/app_config.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -76,7 +77,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(),
 
           _buildSectionHeader('其他'),
-          _buildMenuItem(context, Icons.smart_toy_outlined, 'AI聊天', 'AI助手对话', () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('AI聊天功能开发中')))),
+          if (AppConfig.enableAiChat)
+            _buildMenuItem(context, Icons.smart_toy_outlined, 'AI聊天', 'AI助手对话', () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('AI聊天功能开发中')))),
           _buildMenuItem(context, Icons.rss_feed_outlined, 'RSS订阅', '订阅源管理', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscribeScreen()))),
           _buildMenuItem(context, Icons.cloud_outlined, '云盘同步', 'WebDAV云同步', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupScreen()))),
           _buildMenuItem(context, Icons.subscriptions_outlined, '规则订阅', '订阅书源规则', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RuleSubscriptionScreen()))),

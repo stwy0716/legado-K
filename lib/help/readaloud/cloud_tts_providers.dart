@@ -287,7 +287,7 @@ class FreeGoogleTtsProvider extends CloudTtsProvider {
 
 class CloudTtsProviderFactory {
   static CloudTtsProvider? create(CloudTtsEngine engine) {
-    switch (engine.type?.toLowerCase()) {
+    switch (engine.type.toLowerCase()) {
       case 'aliyun':
       case 'alibaba':
         return AlibabaCloudTtsProvider(engine);

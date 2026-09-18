@@ -5,7 +5,6 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/data/model/book.dart';
-import 'package:legado_md3/data/model/book_chapter.dart';
 import 'package:legado_md3/data/model/replace_rule.dart';
 import 'package:legado_md3/data/model/rss_source.dart';
 import '../../data/local/app_database.dart';

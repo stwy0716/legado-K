@@ -31,7 +31,6 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   bool _isLoading = true;
   bool _introExpanded = false;
   int _readChapterIndex = 0;
-  int _readPageIndex = 0;
 
   @override
   void initState() {
@@ -84,8 +83,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
     final records = await _db.getReadRecords();
     for (final r in records) {
       if (r.bookName == widget.book.name && r.author == widget.book.author) {
-        _readChapterIndex = (r.chapterIndex as int?) ?? 0;
-        _readPageIndex = (r.pagePos as int?) ?? 0;
+        _readChapterIndex = r.chapterIndex ?? 0;
         break;
       }
     }

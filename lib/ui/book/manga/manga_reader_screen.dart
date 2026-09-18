@@ -20,7 +20,6 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
   bool _loading = true;
   bool _showMenu = false;
   int _scrollMode = 0; // 0:连续滚动 1:翻页
-  double _imageWidth = 0;
 
   @override
   void initState() {

@@ -84,7 +84,7 @@ class EpubParser {
           final tocRegion = RegExp(r'<nav[^>]*epub:type="toc"[^>]*>(.*?)</nav>', dotAll: true).firstMatch(navContent)?.group(1) ?? navContent;
           final links = RegExp(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', dotAll: true).allMatches(tocRegion);
           for (final match in links) {
-            final title = match.group(2)?.replaceAll(RegExp(r'<[^>]+>'), '')?.trim() ?? '';
+            final title = (match.group(2) ?? '').replaceAll(RegExp(r'<[^>]+>'), '').trim();
             final href = (match.group(1) ?? '').split('#').first;
             if (title.isEmpty || href.isEmpty) continue;
             chapters.add(BookChapter(title: title, url: href, index: index++, isVolume: false));

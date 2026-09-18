@@ -17,7 +17,6 @@ class _ChangeChapterSourceSheetState extends State<ChangeChapterSourceSheet> {
   final _db = DatabaseService();
   List<BookSource> _sources = [];
   bool _loading = true;
-  String? _currentOrigin;
 
   @override
   void initState() {

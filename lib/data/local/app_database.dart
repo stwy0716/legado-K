@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import 'package:legado_md3/data/model/book.dart';
@@ -11,7 +10,6 @@ import 'package:legado_md3/data/model/book_marking.dart';
 import 'package:legado_md3/data/model/bookmark.dart';
 import 'package:legado_md3/data/model/cache.dart';
 import 'package:legado_md3/data/model/cloud_tts_engine.dart';
-import 'package:legado_md3/data/model/cookie.dart';
 import 'package:legado_md3/data/model/dict_rule.dart';
 import 'package:legado_md3/data/model/highlight_rule.dart';
 import 'package:legado_md3/data/model/highlight_tag_rule.dart';
@@ -22,10 +20,8 @@ import 'package:legado_md3/data/model/rss_source.dart';
 import 'package:legado_md3/data/model/rss_article.dart';
 import 'package:legado_md3/data/model/rss_star.dart';
 import 'package:legado_md3/data/model/rule_sub.dart';
-import 'package:legado_md3/data/model/search_content_history.dart';
 import 'package:legado_md3/data/model/server.dart';
 import 'package:legado_md3/data/model/tag_group_rule.dart';
-import 'package:legado_md3/data/model/translation_cache.dart';
 import 'package:legado_md3/data/model/txt_toc_rule.dart';
 import 'package:legado_md3/data/model/keyboard_assist.dart';
 import 'package:legado_md3/data/model/homepage_module.dart';
@@ -36,7 +32,7 @@ class DatabaseService {
   DatabaseService._internal();
 
   Database? _db;
-  static const int _dbVersion = 6;
+  static const int _dbVersion = 7;
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -56,12 +52,23 @@ class DatabaseService {
       try { await db.execute('ALTER TABLE replace_rules ADD COLUMN isContent INTEGER DEFAULT 1'); } catch (_) {}
       try { await db.execute('ALTER TABLE replace_rules ADD COLUMN isRegex INTEGER DEFAULT 1'); } catch (_) {}
     }
+    if (oldVersion < 7) {
+      // book_chapters 旧表用保留字 "index" 且缺 start_pos/end_pos/variable，重建并迁移
+      try {
+        await db.execute('ALTER TABLE book_chapters RENAME TO book_chapters_old');
+      } catch (_) {}
+      await db.execute('CREATE TABLE IF NOT EXISTS book_chapters (bookName TEXT NOT NULL, bookAuthor TEXT NOT NULL, chapter_index INTEGER NOT NULL, title TEXT, url TEXT, baseUrl TEXT, isVolume INTEGER DEFAULT 0, isPay INTEGER DEFAULT 0, tag TEXT, resourceUrl TEXT, content TEXT, start_pos INTEGER, end_pos INTEGER, variable TEXT, PRIMARY KEY (bookName, bookAuthor, chapter_index))');
+      try {
+        await db.execute('INSERT OR REPLACE INTO book_chapters (bookName, bookAuthor, chapter_index, title, url, baseUrl, isVolume, isPay, tag, resourceUrl, content) SELECT bookName, bookAuthor, "index", title, url, baseUrl, isVolume, isPay, tag, resourceUrl, content FROM book_chapters_old');
+        await db.execute('DROP TABLE book_chapters_old');
+      } catch (_) {}
+    }
     await _onCreate(db, newVersion);
   }
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('CREATE TABLE IF NOT EXISTS books (name TEXT NOT NULL, author TEXT NOT NULL, origin TEXT, originName TEXT, bookUrl TEXT, coverUrl TEXT, customCoverUrl TEXT, intro TEXT, kind TEXT, latestChapterTitle TEXT, lastChapterTime INTEGER, updateTime INTEGER, lastCheckTime INTEGER, "order" INTEGER, groupId INTEGER, PRIMARY KEY (name, author))');
-    await db.execute('CREATE TABLE IF NOT EXISTS book_chapters (bookName TEXT NOT NULL, bookAuthor TEXT NOT NULL, "index" INTEGER NOT NULL, title TEXT, url TEXT, baseUrl TEXT, isVolume INTEGER DEFAULT 0, isPay INTEGER DEFAULT 0, tag TEXT, resourceUrl TEXT, content TEXT, PRIMARY KEY (bookName, bookAuthor, "index"))');
+    await db.execute('CREATE TABLE IF NOT EXISTS book_chapters (bookName TEXT NOT NULL, bookAuthor TEXT NOT NULL, chapter_index INTEGER NOT NULL, title TEXT, url TEXT, baseUrl TEXT, isVolume INTEGER DEFAULT 0, isPay INTEGER DEFAULT 0, tag TEXT, resourceUrl TEXT, content TEXT, start_pos INTEGER, end_pos INTEGER, variable TEXT, PRIMARY KEY (bookName, bookAuthor, chapter_index))');
     await db.execute('CREATE TABLE IF NOT EXISTS book_sources (bookSourceUrl TEXT PRIMARY KEY, bookSourceName TEXT, bookSourceGroup TEXT, bookSourceType INTEGER, bookSourceComment TEXT, lastUpdateTime INTEGER, enabled INTEGER DEFAULT 1, enabledExplore INTEGER DEFAULT 1, customOrder INTEGER, respondTime INTEGER, weight INTEGER, header TEXT, loginUrl TEXT, bookUrlPattern TEXT, charset TEXT, searchUrl TEXT, exploreUrl TEXT, ruleSearch TEXT, ruleExplore TEXT, ruleBookInfo TEXT, ruleToc TEXT, ruleContent TEXT, ruleReview TEXT)');
     await db.execute('CREATE TABLE IF NOT EXISTS book_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, "order" INTEGER, show INTEGER DEFAULT 1, cover TEXT)');
     await db.execute('CREATE TABLE IF NOT EXISTS book_knowledge (id INTEGER PRIMARY KEY AUTOINCREMENT, bookName TEXT, author TEXT, type TEXT, name TEXT, content TEXT, cover TEXT, "order" INTEGER)');
@@ -123,7 +130,7 @@ class DatabaseService {
   // 章节DAO
   Future<List<BookChapter>> getChapters(String bookName, String bookAuthor) async {
     final db = await database;
-    final maps = await db.query('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [bookName, bookAuthor], orderBy: '"index" ASC');
+    final maps = await db.query('book_chapters', where: 'bookName = ? AND bookAuthor = ?', whereArgs: [bookName, bookAuthor], orderBy: 'chapter_index ASC');
     return maps.map((m) => BookChapter.fromMap(m)).toList();
   }
 
@@ -148,7 +155,7 @@ class DatabaseService {
 
   Future<void> updateChapterContent(String bookName, String author, int chapterIndex, String content) async {
     final db = await database;
-    await db.update('book_chapters', {'content': content}, where: 'bookName = ? AND bookAuthor = ? AND "index" = ?', whereArgs: [bookName, author, chapterIndex]);
+    await db.update('book_chapters', {'content': content}, where: 'bookName = ? AND bookAuthor = ? AND chapter_index = ?', whereArgs: [bookName, author, chapterIndex]);
   }
 
   Future<void> deleteChapters(String bookName, String bookAuthor) async {
@@ -386,9 +393,21 @@ class DatabaseService {
     await db.delete('caches');
   }
 
+  /// 清空所有书籍的章节正文缓存（保留目录结构，仅把 content 置空）
   Future<void> clearChapterContent() async {
     final db = await database;
-    await db.delete('caches');
+    await db.update('book_chapters', {'content': null});
+  }
+
+  /// 清空单本书籍的章节正文缓存
+  Future<void> clearBookChapterContent(String bookName, String bookAuthor) async {
+    final db = await database;
+    await db.update(
+      'book_chapters',
+      {'content': null},
+      where: 'bookName = ? AND bookAuthor = ?',
+      whereArgs: [bookName, bookAuthor],
+    );
   }
 
   // 字典规则DAO
@@ -645,13 +664,6 @@ class DatabaseService {
     await db.delete('tag_group_rules', where: 'id = ?', whereArgs: [id]);
   }
 
-  // 搜索书籍DAO
-  Future<List<Book>> getSearchBooks() async {
-    final db = await database;
-    final maps = await db.query('search_books', orderBy: 'addTime DESC');
-    return maps.map((m) => Book.fromMap(m)).toList();
-  }
-
   // 阅读进度DAO
   Future<BookProgress?> getBookProgress(String bookName, String author) async {
     final db = await database;
@@ -662,6 +674,16 @@ class DatabaseService {
   Future<void> saveBookProgress(BookProgress progress) async {
     final db = await database;
     await db.insert('book_progress', progress.toMap());
+  }
+
+  /// 读取全部书籍的最新阅读进度（每本书取 lastReadTime 最新一条），用于 WebDAV 进度同步
+  Future<List<BookProgress>> getAllBookProgress() async {
+    final db = await database;
+    final maps = await db.rawQuery(
+      'SELECT * FROM book_progress p WHERE lastReadTime = '
+      '(SELECT MAX(lastReadTime) FROM book_progress WHERE bookName = p.bookName AND author = p.author)',
+    );
+    return maps.map(BookProgress.fromMap).toList();
   }
 
   // 首页模块DAO

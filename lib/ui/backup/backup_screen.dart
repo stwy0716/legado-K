@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:legado_md3/help/storage/backup_service.dart';
+import 'package:legado_md3/data/local/app_database.dart';
 
 class BackupScreen extends StatefulWidget {
   const BackupScreen({super.key});
@@ -111,7 +112,12 @@ class _BackupScreenState extends State<BackupScreen> {
         includeReplaceRules: _includeRules, includeReadRecords: _includeRecords,
       );
       final ts = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
-      final ok = await _webdav().uploadBackup('backup_$ts.json', utf8.encode(jsonEncode(data)));
+      var ok = await _webdav().uploadBackup('backup_$ts.json', utf8.encode(jsonEncode(data)));
+      // 勾选「同步阅读进度」时，额外上传一份阅读进度
+      if (ok && _syncProgress) {
+        final progress = await DatabaseService().getAllBookProgress();
+        await _webdav().uploadReadingProgress(progress.map((e) => e.toMap()).toList());
+      }
       _tip(ok ? '已上传到 WebDAV' : '上传失败');
     } catch (e) {
       _tip('上传失败: $e');

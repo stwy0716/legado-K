@@ -61,8 +61,8 @@ class _CloudTtsScreenState extends State<CloudTtsScreen> {
                 return Card(
                   child: ListTile(
                     leading: Icon(isSystem ? Icons.phone_android : Icons.cloud_outlined),
-                    title: Text(engine.name ?? ''),
-                    subtitle: Text(isSystem ? '系统内置' : '${CloudTtsProviderFactory.getProviderName(engine.type ?? '')}${engine.region != null ? " (${engine.region})" : ""}'),
+                    title: Text(engine.name),
+                    subtitle: Text(isSystem ? '系统内置' : '${CloudTtsProviderFactory.getProviderName(engine.type)}${engine.region != null ? " (${engine.region})" : ""}'),
                     trailing: Switch(
                       value: engine.enabled == 1,
                       onChanged: (v) {
@@ -92,7 +92,7 @@ class _CloudTtsScreenState extends State<CloudTtsScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(engine.name ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(engine.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             if (engine.type != 'system') ...[
               TextField(controller: apiKeyController, decoration: const InputDecoration(labelText: 'API Key', border: OutlineInputBorder()), obscureText: true),

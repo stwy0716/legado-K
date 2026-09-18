@@ -1,12 +1,12 @@
 import 'dart:convert';
-import 'package:crypto/crypto.dart';
+import 'package:crypto/crypto.dart' as crypto;
 
 /// 本地安全辅助：摘要哈希与可逆编码
 class EncryptionHelper {
   EncryptionHelper._();
 
-  static String md5(String input) => md5.convert(utf8.encode(input)).toString();
-  static String sha256(String input) => sha256.convert(utf8.encode(input)).toString();
+  static String md5(String input) => crypto.md5.convert(utf8.encode(input)).toString();
+  static String sha256(String input) => crypto.sha256.convert(utf8.encode(input)).toString();
 
   /// 密码校验：明文与已保存哈希比对
   static bool verifyPassword(String plain, String savedHash) =>

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/data/model/book.dart';
-import 'package:legado_md3/data/model/book_chapter.dart';
 
 /// 下载管理 - 查看每本书已缓存章节，支持清理缓存
 class DownloadManageScreen extends StatefulWidget {

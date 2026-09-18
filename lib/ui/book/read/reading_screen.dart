@@ -12,18 +12,19 @@ import 'package:legado_md3/data/model/book_marking.dart';
 import 'package:legado_md3/data/model/dict_rule.dart';
 import 'package:legado_md3/ui/browser/browser_screen.dart';
 import 'package:legado_md3/data/model/book_chapter.dart';
+import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/ui/config/txt_toc_rule_screen.dart';
 import 'package:legado_md3/data/model/read_config.dart';
 import 'package:legado_md3/di/book_provider.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/source/source_engine.dart';
+import 'package:legado_md3/help/source/content_dict_service.dart';
+import 'package:legado_md3/help/source/highlight_service.dart';
 import 'package:legado_md3/help/source/replace_rule_service.dart';
 import 'package:legado_md3/help/translate/translation_service.dart';
 import 'package:legado_md3/help/readaloud/tts_service.dart';
 import 'package:legado_md3/help/readaloud/reading_record.dart';
-import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/ui/book/read/config/reading_settings_screen.dart';
-import 'package:legado_md3/ui/book/read/config/read_tool_config_screen.dart';
 import 'package:legado_md3/help/config/read_menu_config.dart';
 import 'package:legado_md3/ui/book/chapter/chapter_list_screen.dart';
 import 'package:legado_md3/ui/config/replace_rule_screen.dart';
@@ -72,6 +73,76 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   List<String> _selectMenuOrder = List.of(ReadMenuConfig.defaultSelectMenu);
   List<String> _floatingBarOrder = List.of(ReadMenuConfig.defaultFloatingBar);
   bool _floatingBarVisible = true;
+  // 实验室开关：正文是否允许自由选择复制（默认开启）
+  bool _textSelectable = true;
+  // 实验室开关：分页估算诊断（输出分页计算过程到控制台）
+  bool _pageDiag = false;
+  // 实验室开关：加速下载（预缓存时多章节并发拉取）
+  bool _accelerateDownload = false;
+  // 下载缓存配置：阅读时向后预缓存的章节数（0 表示关闭）
+  int _preDownload = 5;
+  // 正在预缓存的章节下标，避免重复请求
+  final Set<int> _prefetching = {};
+
+  Future<void> _loadDownloadConfig() async {
+    final p = await SharedPreferences.getInstance();
+    if (mounted) setState(() => _preDownload = p.getInt('dc_preDownload') ?? 5);
+  }
+
+  /// 后台预缓存当前章之后的 [_preDownload] 章，失败静默，不影响阅读
+  Future<void> _prefetch(int fromIndex) async {
+    if (_preDownload <= 0) return;
+    final cached = await _db.getChapters(widget.book.name, widget.book.author);
+    List<BookSource> sources = [];
+    try {
+      sources = await _db.getAllSources(enabled: true);
+    } catch (_) { return; }
+    final source = sources.where((s) => s.bookSourceUrl == widget.book.origin).firstOrNull;
+    if (source == null) return;
+
+    Future<void> fetchOne(int i) async {
+      if (_prefetching.contains(i)) return;
+      _prefetching.add(i);
+      try {
+        final content = await _engine.getContent(source, _chapters[i].url);
+        if (content != null && content.isNotEmpty) {
+          await _db.updateChapterContent(widget.book.name, widget.book.author, i, content);
+        }
+      } catch (_) {
+      } finally {
+        _prefetching.remove(i);
+      }
+    }
+
+    final todo = <int>[];
+    for (int i = fromIndex + 1; i <= fromIndex + _preDownload && i < _chapters.length; i++) {
+      final already = i < cached.length && cached[i].content != null;
+      if (already || _prefetching.contains(i)) continue;
+      if (_chapters[i].url.isEmpty) continue;
+      todo.add(i);
+    }
+    if (todo.isEmpty) return;
+    if (_accelerateDownload) {
+      // 加速下载：多章节并发
+      await Future.wait(todo.map(fetchOne));
+    } else {
+      for (final i in todo) {
+        await fetchOne(i);
+      }
+    }
+  }
+
+  Future<void> _loadLabFlags() async {
+    final p = await SharedPreferences.getInstance();
+    final labOn = p.getBool('lab_enabled') ?? false;
+    if (mounted) {
+      setState(() {
+        _textSelectable = !labOn || (p.getBool('lab_selectable') ?? true);
+        _pageDiag = labOn && (p.getBool('lab_pageDiag') ?? false);
+        _accelerateDownload = labOn && (p.getBool('lab_accDownload') ?? false);
+      });
+    }
+  }
 
   Future<void> _loadMenuConfig() async {
     final tb = await ReadMenuConfig.load(ReadMenuConfig.kToolBar, ReadMenuConfig.defaultToolBar);
@@ -87,11 +158,15 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     _loadClickActions();
     _restoreCharset();
     _loadMenuConfig();
+    _loadLabFlags();
+    _loadDownloadConfig();
+    ContentDictService.reload();
+    HighlightService.reload().then((_) { if (mounted) setState(() {}); });
     _menuController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _currentChapterIndex = widget.initialChapter ?? widget.book.durChapterIndex ?? 0;
+    _currentChapterIndex = widget.initialChapter ?? widget.book.durChapterIndex;
     _recordService.startSession(widget.book.name, widget.book.author);
     _ttsService.init();
     _loadData();
@@ -135,6 +210,16 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     }
 
     if (mounted) setState(() => _isLoading = false);
+
+    // 实验室「模拟阅读」：进入阅读页后自动开始翻页
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (p.getBool('simulate_reading') ?? false) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_autoReadOn) _startAutoRead();
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchTocFromNetwork() async {
@@ -181,8 +266,13 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
       _content = chapter.content ?? '暂无内容';
     }
 
+    // 应用「字典规则」内容替换词典（关闭或无规则时原样返回）
+    if (_content != null) _content = await ContentDictService.apply(_content!);
+
     _paginateContent();
     _currentChapterIndex = index;
+    // 后台预缓存后续章节（不 await，不阻塞当前阅读）
+    unawaited(_prefetch(index));
     // 保存阅读进度
     final provider = Provider.of<BookProvider>(context, listen: false);
     await provider.saveReadingProgress(widget.book, index, 0);
@@ -213,6 +303,9 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     if (currentPage.isNotEmpty) pages.add(currentPage.toString());
     _pages = pages.isEmpty ? [_content!] : pages;
     _currentPage = 0;
+    if (_pageDiag) {
+      debugPrint('[分页诊断] 总字数=${_content!.length} 段落数=${paragraphs.length} 分页数=${_pages.length} 每页上限≈800字');
+    }
     // 修复：PageView跳转到第一页
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_pageController.hasClients) {
@@ -405,6 +498,29 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
     );
   }
 
+  Widget _pageText(ReadConfig config, int index) {
+    final style = TextStyle(
+      fontSize: config.textSize.toDouble(),
+      color: Color(config.textColor),
+      height: config.lineSpacing * 0.5 + 1.0,
+      letterSpacing: config.letterSpacing,
+      wordSpacing: config.wordSpacing,
+      fontWeight: config.boldText ? FontWeight.bold : FontWeight.normal,
+      fontFamily: config.fontFamily,
+    );
+    final align = config.textAlign == 1
+        ? TextAlign.center
+        : config.textAlign == 2
+            ? TextAlign.justify
+            : TextAlign.left;
+    // 命中高亮标签规则时用 Text.rich 上色，否则退回普通 Text
+    final spans = HighlightService.spansFor(_pages[index], style);
+    if (spans != null) {
+      return Text.rich(TextSpan(children: spans), textAlign: align);
+    }
+    return Text(_pages[index], style: style, textAlign: align);
+  }
+
   Widget _buildReadingContent(ReadConfig config) {
     return PageView.builder(
       controller: _pageController,
@@ -418,38 +534,24 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
             config.paddingRight.toDouble(),
             config.paddingBottom.toDouble(),
           ),
-          child: SelectionArea(
-            contextMenuBuilder: (context, state) {
-              // 兼容 Flutter 3.24：先复制选区，再从剪贴板读取选中文字（不依赖 currentTextSelection/currentSelectable）
-              Future<String> grab() async {
-                state.copySelection(SelectionChangedCause.toolbar);
-                await Future.delayed(const Duration(milliseconds: 30));
-                final d = await Clipboard.getData(Clipboard.kTextPlain);
-                return d?.text ?? '';
-              }
-              return AdaptiveTextSelectionToolbar(
-                anchors: state.contextMenuAnchors,
-                children: _buildSelectMenuChildren(state, grab),
-              );
-            },
-            child: Text(
-              _pages[index],
-              style: TextStyle(
-                fontSize: config.textSize.toDouble(),
-                color: Color(config.textColor),
-                height: config.lineSpacing * 0.5 + 1.0,
-                letterSpacing: config.letterSpacing,
-                wordSpacing: config.wordSpacing,
-                fontWeight: config.boldText ? FontWeight.bold : FontWeight.normal,
-                fontFamily: config.fontFamily,
-              ),
-              textAlign: config.textAlign == 1
-                  ? TextAlign.center
-                  : config.textAlign == 2
-                      ? TextAlign.justify
-                      : TextAlign.left,
-            ),
-          ),
+          child: _textSelectable
+              ? SelectionArea(
+                  contextMenuBuilder: (context, state) {
+                    // 兼容 Flutter 3.24：先复制选区，再从剪贴板读取选中文字（不依赖 currentTextSelection/currentSelectable）
+                    Future<String> grab() async {
+                      state.copySelection(SelectionChangedCause.toolbar);
+                      await Future.delayed(const Duration(milliseconds: 30));
+                      final d = await Clipboard.getData(Clipboard.kTextPlain);
+                      return d?.text ?? '';
+                    }
+                    return AdaptiveTextSelectionToolbar(
+                      anchors: state.contextMenuAnchors,
+                      children: _buildSelectMenuChildren(state, grab),
+                    );
+                  },
+                  child: _pageText(config, index),
+                )
+              : _pageText(config, index),
         );
       },
     );
@@ -1055,7 +1157,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
                     final bm = bookmarks[index];
                     return ListTile(
                       leading: const Icon(Icons.bookmark),
-                      title: Text(bm.chapterTitle?.toString() ?? '第${bm.chapterIndex}章'),
+                      title: Text(bm.chapterTitle.isNotEmpty ? bm.chapterTitle : '第${bm.chapterIndex}章'),
                       subtitle: Text('第 ${(bm.pageIndex as int? ?? 0) + 1} 页'),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
@@ -1202,7 +1304,7 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
   }
 
   void _showContentEditor() {
-    final controller = TextEditingController(text: _chapters.isNotEmpty ? _chapters[_currentChapterIndex].content : null ?? '');
+    final controller = TextEditingController(text: _chapters.isNotEmpty ? (_chapters[_currentChapterIndex].content ?? '') : '');
     showDialog(context: context, builder: (context) => AlertDialog(
       title: const Text('内容编辑'),
       content: SizedBox(width: double.maxFinite, child: TextField(controller: controller, maxLines: 10, decoration: const InputDecoration(border: OutlineInputBorder()))),

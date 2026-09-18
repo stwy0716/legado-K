@@ -1,1 +1,1 @@
-export '../model/chapter.dart';
+export '../model/book_chapter.dart';
