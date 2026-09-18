@@ -25,6 +25,8 @@ class BookSource {
   String? coverDecodeJs;
   bool eventListener;
   bool customButton;
+  bool enabledCookieJar;
+  String? concurrentRate;
   String? homepageModules;
 
   // 搜索
@@ -70,6 +72,8 @@ class BookSource {
     this.coverDecodeJs,
     this.eventListener = false,
     this.customButton = false,
+    this.enabledCookieJar = false,
+    this.concurrentRate,
     this.homepageModules,
     this.searchUrl,
     this.checkKeyWord,
@@ -120,6 +124,8 @@ class BookSource {
       coverDecodeJs: json['coverDecodeJs'],
       eventListener: json['eventListener'] ?? false,
       customButton: json['customButton'] ?? false,
+      enabledCookieJar: json['enabledCookieJar'] ?? false,
+      concurrentRate: json['concurrentRate']?.toString(),
       homepageModules: json['homepageModules'],
       searchUrl: json['searchUrl'],
       checkKeyWord: json['checkKeyWord'],
@@ -172,6 +178,8 @@ class BookSource {
     'coverDecodeJs': coverDecodeJs,
     'eventListener': eventListener,
     'customButton': customButton,
+    'enabledCookieJar': enabledCookieJar,
+    'concurrentRate': concurrentRate,
     'homepageModules': homepageModules,
     'searchUrl': searchUrl,
     'checkKeyWord': checkKeyWord,
@@ -213,6 +221,8 @@ class BookSource {
     'coverDecodeJs': coverDecodeJs,
     'eventListener': eventListener ? 1 : 0,
     'customButton': customButton ? 1 : 0,
+    'enabledCookieJar': enabledCookieJar ? 1 : 0,
+    'concurrentRate': concurrentRate,
     'homepageModules': homepageModules,
     'searchUrl': searchUrl,
     'checkKeyWord': checkKeyWord,
@@ -256,6 +266,8 @@ class BookSource {
     coverDecodeJs: map['coverDecodeJs'],
     eventListener: (map['eventListener'] ?? 0) == 1,
     customButton: (map['customButton'] ?? 0) == 1,
+    enabledCookieJar: (map['enabledCookieJar'] ?? 0) == 1,
+    concurrentRate: map['concurrentRate']?.toString(),
     homepageModules: map['homepageModules'],
     searchUrl: map['searchUrl'],
     checkKeyWord: map['checkKeyWord'],

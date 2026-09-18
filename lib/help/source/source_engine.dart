@@ -10,6 +10,7 @@ import 'package:legado_md3/data/model/replace_rule.dart';
 import 'package:legado_md3/help/source/replace_rule_service.dart';
 import 'package:legado_md3/help/source/rule_pipeline.dart';
 import 'package:legado_md3/help/http/cookie_manager.dart';
+import 'package:legado_md3/data/local/app_database.dart';
 import 'package:enough_convert/enough_convert.dart';
 
 /// Legado书源引擎 - 对齐原版规则格式（CSS / XPath / JSONPath / 正则 / JS子集）
@@ -32,6 +33,61 @@ class BookSourceEngine {
   /// 强制编码（阅读页可切换），null 时自动探测
   String? forcedCharset;
   void setCharset(String? cs) => forcedCharset = cs;
+
+  /// 当前书源是否启用持久化 CookieJar（由各公共入口按书源设置写入）
+  bool _persistCookieJar = false;
+  final DatabaseService _cookieDb = DatabaseService();
+
+  /// 请求节流：书源并发率 concurrentRate（纯数字=最小间隔毫秒；n/ms=每 ms 内 n 次）
+  int _minIntervalMs = 0;
+  DateTime? _lastFetchAt;
+  void _applySourceFlags(BookSource source) {
+    _persistCookieJar = source.enabledCookieJar;
+    var interval = 0;
+    final raw = source.concurrentRate?.trim() ?? '';
+    if (raw.isNotEmpty) {
+      final m = RegExp(r'^\s*(\d+)\s*/\s*(\d+)\s*$').firstMatch(raw);
+      if (m != null) {
+        final n = int.parse(m.group(1)!);
+        final ms = int.parse(m.group(2)!);
+        interval = n <= 0 ? ms : ms ~/ n;
+      } else {
+        interval = int.tryParse(raw) ?? 0;
+      }
+    }
+    _minIntervalMs = interval;
+    // 书源级编码（utf-8/gbk/gb18030…），留空则自动探测
+    final cs = source.charset?.trim() ?? '';
+    forcedCharset = cs.isEmpty ? null : cs;
+  }
+
+  // ==================== 编辑期智能补全专用 ====================
+
+  /// 供书源编辑页“规则补全”抓取页面：应用书源标志、URL 模板、请求头、编码与 Cookie。
+  /// [urlTpl] 可为搜索/发现 URL 模板（含 {{key}}/{{page}}）或任意绝对/相对地址。
+  Future<String> editFetch(BookSource source, String urlTpl,
+      {String keyword = '', int page = 1}) async {
+    _applySourceFlags(source);
+    final url = _processUrlTemplate(urlTpl, keyword, page);
+    return _fetch(url, baseUrl: source.bookSourceUrl);
+  }
+
+  /// 解析相对地址为绝对地址（编辑页推导下一跳用）
+  String resolveEditUrl(String url, String base) => _resolveUrl(url, base);
+
+  /// 取发现配置中的第一条分类 URL 模板
+  String firstExploreUrlOf(String exploreUrl) => _firstExploreUrl(exploreUrl);
+
+  Future<void> _throttle() async {
+    if (_minIntervalMs <= 0) return;
+    final last = _lastFetchAt;
+    if (last != null) {
+      final elapsed = DateTime.now().difference(last).inMilliseconds;
+      final wait = _minIntervalMs - elapsed;
+      if (wait > 0) await Future.delayed(Duration(milliseconds: wait));
+    }
+    _lastFetchAt = DateTime.now();
+  }
 
   /// 调试日志（环形，最近 120 条）
   final List<String> debugLog = [];
@@ -103,7 +159,23 @@ class BookSourceEngine {
         () => 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36');
     // 自动携带同域已保存的 Cookie（搜索->详情->目录->正文 之间保持会话）
     final cookieManager = CookieManager();
-    final existCookie = cookieManager.cookieHeader(finalUrl);
+    var existCookie = cookieManager.cookieHeader(finalUrl);
+    // 开启持久化 CookieJar 时，内存里没有则尝试从数据库恢复同域 Cookie
+    if ((existCookie == null || existCookie.isEmpty) && _persistCookieJar) {
+      try {
+        final host = Uri.parse(finalUrl).host;
+        final saved = await _cookieDb.getCookie(host);
+        if (saved != null && saved.isNotEmpty) {
+          for (final pair in saved.split(';')) {
+            final idx = pair.indexOf('=');
+            if (idx > 0) {
+              cookieManager.saveFromResponse(finalUrl, ['${pair.trimLeft()};']);
+            }
+          }
+          existCookie = cookieManager.cookieHeader(finalUrl);
+        }
+      } catch (_) {}
+    }
     if (existCookie != null && existCookie.isNotEmpty) {
       headers.putIfAbsent('Cookie', () => existCookie);
     }
@@ -115,6 +187,7 @@ class BookSourceEngine {
         followRedirects: true,
         validateStatus: (s) => s != null && s < 400);
 
+    await _throttle();
     _log('$method $finalUrl');
     Response<List<int>> response;
     try {
@@ -134,6 +207,15 @@ class BookSourceEngine {
     }
     // 保存服务器下发的 Set-Cookie，供后续同域请求使用
     cookieManager.saveFromResponse(finalUrl, response.headers.map['set-cookie']);
+    // 开启持久化 CookieJar 时，把同域 Cookie 落库（跨启动/登录后保持会话）
+    if (_persistCookieJar) {
+      try {
+        final header = cookieManager.cookieHeader(finalUrl);
+        if (header != null && header.isNotEmpty) {
+          await _cookieDb.saveCookie(Uri.parse(finalUrl).host, header);
+        }
+      } catch (_) {}
+    }
     _log('响应 ${response.statusCode}, ${(response.data ?? []).length} 字节');
     final text = _decodeBytes(response.data ?? [], response.headers.map);
     _log('解码完成，文本 ${text.length} 字符');
@@ -291,6 +373,7 @@ class BookSourceEngine {
 
   /// 搜索书籍
   Future<List<SearchBook>> search(BookSource source, String keyword, {int page = 1}) async {
+    _applySourceFlags(source);
     if (source.searchUrl == null || source.searchUrl!.isEmpty) return [];
     if (source.ruleSearch == null) return [];
     try {
@@ -306,6 +389,7 @@ class BookSourceEngine {
 
   /// 发现书籍（使用第一个发现分类）
   Future<List<SearchBook>> explore(BookSource source, {int page = 1}) async {
+    _applySourceFlags(source);
     if (source.exploreUrl == null || source.exploreUrl!.isEmpty) return [];
     final firstUrl = _firstExploreUrl(source.exploreUrl!);
     return exploreByUrl(source, firstUrl, page: page);
@@ -313,6 +397,7 @@ class BookSourceEngine {
 
   /// 按指定发现分类 URL 探索
   Future<List<SearchBook>> exploreByUrl(BookSource source, String exploreUrl, {int page = 1}) async {
+    _applySourceFlags(source);
     if (source.ruleExplore == null || exploreUrl.isEmpty) return [];
     try {
       final url = _processUrlTemplate(exploreUrl, '', page);
@@ -344,6 +429,7 @@ class BookSourceEngine {
 
   /// 获取书籍详情
   Future<Book?> getBookInfo(BookSource source, String bookUrl) async {
+    _applySourceFlags(source);
     try {
       final rule = source.ruleBookInfo ?? {};
       final content = await _fetch(bookUrl, baseUrl: source.bookSourceUrl);
@@ -394,6 +480,7 @@ class BookSourceEngine {
 
   /// 获取章节目录（支持 nextTocUrl 翻页拼接）
   Future<List<BookChapter>> getToc(BookSource source, String tocUrl) async {
+    _applySourceFlags(source);
     if (source.ruleToc == null) return [];
     final chapters = <BookChapter>[];
     var currentUrl = tocUrl;
@@ -470,6 +557,7 @@ class BookSourceEngine {
   /// 获取正文内容
   Future<String?> getContent(BookSource source, String contentUrl,
       {List<ReplaceRule>? replaceRules}) async {
+    _applySourceFlags(source);
     if (source.ruleContent == null) return null;
     try {
       final rule = source.ruleContent!;
@@ -531,7 +619,7 @@ class BookSourceEngine {
       acc = '$acc\n${_cleanHtml(part)}';
       final nnRule = source.ruleContent!['nextContentUrl']?.toString() ?? '';
       if (nnRule.isNotEmpty) {
-        return _appendNextPages(source, nextContent, acc, nnRule, nextUrl, depth + 1);
+        return await _appendNextPages(source, nextContent, acc, nnRule, nextUrl, depth + 1);
       }
       return acc;
     } catch (_) {

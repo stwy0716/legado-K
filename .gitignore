@@ -53,3 +53,6 @@ ios/Runner.xcworkspace/xcuserdata/
 # 构建产物
 release_apk/
 *.apk
+
+# iOS 本地生成
+ios/Flutter/ephemeral/
