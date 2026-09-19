@@ -97,7 +97,13 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
         FilledButton(onPressed: () async {
           if (userController.text.isEmpty) return;
-          source.variable = (source.variable ?? '') + '\nloginUser=${userController.text}';
+          // 移除旧的登录变量后重新写入，避免重复累积
+          final lines = (source.variable ?? '').split('\n').where((l) {
+            final t = l.trim();
+            return !t.startsWith('loginUser=') && !t.startsWith('loginPwd=');
+          }).join('\n');
+          final extra = '${lines.isEmpty ? '' : '$lines\n'}loginUser=${userController.text}\nloginPwd=${passController.text}';
+          source.variable = extra;
           await _db.updateSource(source);
           if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('登录信息已保存'))); }
         }, child: const Text('登录')),
@@ -410,37 +416,73 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
   }
 
   void _showGroupManageDialog() {
-    final controller = TextEditingController();
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: const Text('分组管理'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('现有分组:', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        ..._groups.map((g) => ListTile(
-          dense: true,
-          title: Text(g),
-          trailing: IconButton(icon: const Icon(Icons.delete, size: 18), onPressed: () async {
-            for (final s in _sources.where((s) => s.bookSourceGroup == g)) {
-              s.bookSourceGroup = null;
-              await _db.updateSource(s);
-            }
-            await _loadSources();
-            if (mounted) Navigator.pop(context);
-          }),
-        )),
-        const Divider(),
-        TextField(controller: controller, decoration: const InputDecoration(labelText: '新建分组', border: OutlineInputBorder())),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
-        FilledButton(onPressed: () async {
-          if (controller.text.trim().isNotEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('分组"${controller.text.trim()}"已创建，在书源编辑中选择')));
-          }
-          Navigator.pop(context);
-        }, child: const Text('创建')),
-      ],
+    showDialog(context: context, builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('分组管理'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text('分组来源于书源；可在此重命名或解散（解散后书源回到未分组）。新建分组请在编辑书源或多选“添加分组”中设置。',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+            ),
+            if (_groups.isEmpty)
+              const Padding(padding: EdgeInsets.all(16), child: Text('暂无分组'))
+            else
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: _groups.map((g) => ListTile(
+                    dense: true,
+                    title: Text(g),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(icon: const Icon(Icons.drive_file_rename_outline, size: 18), tooltip: '重命名', onPressed: () => _renameGroup(g)),
+                      IconButton(icon: const Icon(Icons.delete, size: 18), tooltip: '解散分组', onPressed: () async {
+                        for (final s in _sources.where((s) => s.bookSourceGroup == g)) {
+                          s.bookSourceGroup = null;
+                          await _db.updateSource(s);
+                        }
+                        await _loadSources();
+                        if (mounted) { setDialogState(() {}); }
+                      }),
+                    ]),
+                  )).toList(),
+                ),
+              ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
+        ],
+      ),
     ));
+  }
+
+  Future<void> _renameGroup(String oldName) async {
+    final controller = TextEditingController(text: oldName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('重命名分组'),
+        content: TextField(controller: controller, decoration: const InputDecoration(labelText: '新分组名', border: OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('确定')),
+        ],
+      ),
+    );
+    if (newName == null || newName.isEmpty || newName == oldName) return;
+    for (final s in _sources.where((s) => s.bookSourceGroup == oldName)) {
+      s.bookSourceGroup = newName;
+      await _db.updateSource(s);
+    }
+    await _loadSources();
+    if (mounted) {
+      // 刷新分组管理弹窗内容
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已重命名为「$newName」')));
+    }
   }
 
   Future<void> _batchAction(String action) async {

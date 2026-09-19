@@ -471,6 +471,12 @@ class DatabaseService {
     await db.delete('caches');
   }
 
+  /// 收缩数据库，回收已删除数据占用的空闲页（VACUUM 不能在事务中执行）
+  Future<void> vacuum() async {
+    final db = await database;
+    await db.execute('VACUUM');
+  }
+
   /// 清空所有书籍的章节正文缓存（保留目录结构，仅把 content 置空）
   Future<void> clearChapterContent() async {
     final db = await database;

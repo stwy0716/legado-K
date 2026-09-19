@@ -636,10 +636,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showWebServiceDialog() {
     showDialog(context: context, builder: (context) => AlertDialog(
       title: const Text('Web服务'),
-      content: const Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(leading: Icon(Icons.wifi), title: Text('服务地址'), subtitle: Text('http://localhost:1122')),
-        ListTile(leading: Icon(Icons.devices), title: Text('设备地址'), subtitle: Text('http://192.168.1.100:1122')),
-        ListTile(leading: Icon(Icons.info_outline), title: Text('说明'), subtitle: Text('在同一局域网下，通过浏览器访问上述地址管理书籍')),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        const ListTile(leading: Icon(Icons.wifi), title: Text('服务地址'), subtitle: Text('http://localhost:1122')),
+        ListTile(leading: const Icon(Icons.devices), title: const Text('设备地址'), subtitle: Text('http://$_lanIp:1122')),
+        const ListTile(leading: Icon(Icons.info_outline), title: Text('说明'), subtitle: Text('在同一局域网下，通过浏览器访问上述地址管理书籍')),
       ]),
       actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭'))],
     ));
@@ -691,7 +691,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('关于阅读 MD3'),
         content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('版本: 3.26.7'),
+          Text('版本: 3.29.0'),
           SizedBox(height: 8),
           Text('基于Legado MD3风格的跨平台阅读应用'),
           SizedBox(height: 8),

@@ -3,7 +3,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Legado';
-  static const String appVersion = '3.26.7';
+  static const String appVersion = '3.29.0';
   static const int appVersionCode = 32607;
 
   static const String defaultUserAgent =

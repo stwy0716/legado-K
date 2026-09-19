@@ -171,9 +171,15 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    TextButton(onPressed: () => setSheetState(() => _selectedSources.clear()), child: const Text('全选')),
+                    TextButton(onPressed: () async {
+                      final all = await _db.getAllSources(enabled: true);
+                      setSheetState(() {
+                        _selectedSources.addAll(all.map((s) => s.bookSourceUrl));
+                      });
+                    }, child: const Text('全选')),
+                    TextButton(onPressed: () => setSheetState(() => _selectedSources.clear()), child: const Text('重置')),
                     const Spacer(),
-                    FilledButton(onPressed: () => Navigator.pop(context), child: const Text('确定')),
+                    FilledButton(onPressed: () => Navigator.pop(context), child: Text(_selectedSources.isEmpty ? '确定(全部源)' : '确定(${_selectedSources.length})')),
                   ],
                 ),
               ),

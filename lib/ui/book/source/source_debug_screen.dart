@@ -17,6 +17,7 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
   final _bookUrlController = TextEditingController();
   final _tocUrlController = TextEditingController();
   final _contentUrlController = TextEditingController();
+  final _exploreUrlController = TextEditingController();
   final _engine = BookSourceEngine();
   String _debugLog = '';
   bool _isLoading = false;
@@ -25,6 +26,13 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    // 默认取第一个发现分类的地址，便于直接调试
+    final lines = (widget.source.exploreUrl ?? '').split('\n').where((l) => l.trim().isNotEmpty).toList();
+    if (lines.isNotEmpty) {
+      final firstLine = lines.first;
+      final parts = firstLine.split(':::');
+      _exploreUrlController.text = parts.length == 2 ? parts[1].split('&&&').first.trim() : firstLine.trim();
+    }
   }
 
   @override
@@ -34,6 +42,7 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
     _bookUrlController.dispose();
     _tocUrlController.dispose();
     _contentUrlController.dispose();
+    _exploreUrlController.dispose();
     super.dispose();
   }
 
@@ -57,8 +66,9 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
       _log('搜索完成，找到 ${results.length} 个结果');
       for (var i = 0; i < results.length && i < 5; i++) {
         final b = results[i];
+        final intro = b.intro ?? '';
         _log('  ${i + 1}. ${b.name} - ${b.author}');
-        _log('     简介: ${(b.intro ?? '').substring(0, b.intro!.length > 50 ? 50 : b.intro!.length)}');
+        _log('     简介: ${intro.substring(0, intro.length > 50 ? 50 : intro.length)}');
         _log('     目录URL: ${b.noteUrl ?? b.bookUrl ?? 'N/A'}');
       }
       if (results.isNotEmpty) {
@@ -214,19 +224,18 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
 
 
   Widget _buildExploreTab() {
-    final urlController = TextEditingController(text: widget.source.exploreUrl ?? '');
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(children: [
         TextField(
-          controller: urlController,
-          decoration: const InputDecoration(labelText: '发现URL', border: OutlineInputBorder()),
+          controller: _exploreUrlController,
+          decoration: const InputDecoration(labelText: '发现URL（单个分类地址）', border: OutlineInputBorder()),
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         Row(children: [
           Expanded(child: FilledButton.icon(
-            onPressed: () => _debugExplore(urlController.text),
+            onPressed: () => _debugExplore(_exploreUrlController.text.trim()),
             icon: const Icon(Icons.play_arrow),
             label: const Text('执行发现'),
           )),
@@ -237,9 +246,10 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
 
   Future<void> _debugExplore(String url) async {
     if (url.isEmpty) { _log('错误: 请输入发现URL'); return; }
+    setState(() => _isLoading = true);
     _log('开始发现: $url');
     try {
-      final books = await _engine.explore(widget.source);
+      final books = await _engine.exploreByUrl(widget.source, url);
       _log('发现完成，找到 ${books.length} 本书');
       for (final b in books.take(10)) {
         _log('  ${b.name} - ${b.author}');
@@ -247,6 +257,7 @@ class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTicker
     } catch (e) {
       _log('发现失败: $e');
     }
+    setState(() => _isLoading = false);
   }
 
   Widget _buildSearchTab() {
