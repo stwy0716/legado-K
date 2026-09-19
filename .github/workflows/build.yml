@@ -42,7 +42,8 @@ jobs:
       - name: Generate version tag
         id: version
         run: |
-          TAG="v3.26.7-$(date +%Y%m%d-%H%M%S)"
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          TAG="v${VERSION}-$(date +%Y%m%d-%H%M%S)"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
       - name: Delete old prereleases
         run: |
