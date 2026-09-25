@@ -50,7 +50,11 @@ jobs:
         run: flutter test
 
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: |
+          # Flutter 3.47 在本工程布局下 APK 检测路径误报（产物实际存在），
+          # 故容忍其退出码，改由下方 test -f 校验真实产物。
+          flutter build apk --debug || true
+          test -f android/app/build/outputs/flutter-apk/app-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
