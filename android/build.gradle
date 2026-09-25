@@ -1,5 +1,3 @@
-def newBuildDir = rootProject.layout.buildDirectory
-
 allprojects {
     repositories {
         google()
@@ -7,14 +5,10 @@ allprojects {
     }
 }
 
-rootProject.layout.buildDirectory = newBuildDir
-subprojects {
-    project.layout.buildDirectory = newBuildDir.dir(project.name)
-}
 subprojects {
     project.evaluationDependsOn(':app')
 }
 
 tasks.register("clean", Delete) {
-    delete newBuildDir
+    delete rootProject.layout.buildDirectory
 }
