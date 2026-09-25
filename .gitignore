@@ -1,0 +1,21 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec_overrides.yaml
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 平台生成文件（本地构建产物）
+ios/Flutter/ephemeral/
+android/local.properties
+
+# 系统
+.DS_Store
