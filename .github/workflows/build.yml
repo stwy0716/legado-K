@@ -50,7 +50,14 @@ jobs:
         run: flutter test
 
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: |
+          flutter build apk --debug || true
+          echo "===== APK 搜索 ====="
+          find . -name "*.apk" -not -path "*/.dart_tool/*" 2>/dev/null || echo "未找到任何 apk"
+          echo "===== android/app/build 目录树（深度3）====="
+          if [ -d android/app/build ]; then find android/app/build -maxdepth 3 | head -60; else echo "android/app/build 不存在"; fi
+          echo "===== repo根 build 目录树（深度3）====="
+          if [ -d build ]; then find build -maxdepth 3 | head -60; else echo "repo根 build 不存在"; fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
