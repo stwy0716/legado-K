@@ -243,7 +243,8 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       final source = sourceMap[book.origin];
       if (source == null) continue;
       try {
-        final newChapters = await _engine.getToc(source, book.noteUrl!);
+        final newChapters = await _engine.getToc(source, book.noteUrl!,
+            bookInfo: book.jsContext());
         final oldChapters = await _db.getChapters(book.name, book.author);
         if (newChapters.length > oldChapters.length) {
           await _db.saveChapters(book.name, book.author, newChapters);
@@ -366,7 +367,8 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
               final source = sources.where((s) => s.bookSourceUrl == book.origin).firstOrNull;
               if (source == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('未找到对应书源或书源已停用'))); return; }
               try {
-                final chapters = await _engine.getToc(source, book.noteUrl!);
+                final chapters = await _engine.getToc(source, book.noteUrl!,
+                    bookInfo: book.jsContext());
                 await _db.saveChapters(book.name, book.author, chapters);
                 book.lastChapter = chapters.last.title;
                 book.lastChapterIndex = chapters.length - 1;
@@ -1087,7 +1089,9 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     for (final ch in chapters) {
       if (ch.isVolume || (ch.content ?? '').isNotEmpty) continue;
       try {
-        final content = await engine.getContent(source, ch.url);
+        final content = await engine.getContent(source, ch.url,
+            bookInfo: book.jsContext(),
+            chapter: ch.jsContext(book.bookUrl));
         if (content != null && content.isNotEmpty) {
           await _db.updateChapterContent(
               book.name, book.author, ch.index, content);

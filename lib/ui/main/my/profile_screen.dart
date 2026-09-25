@@ -114,7 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
 
           const SizedBox(height: 24),
-          const Center(child: Text('Legado MD3 v3.29.0', style: TextStyle(color: Colors.grey, fontSize: 12))),
+          const Center(child: Text('Legado MD3 v3.30.0', style: TextStyle(color: Colors.grey, fontSize: 12))),
           const SizedBox(height: 16),
         ],
       ),
@@ -162,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Legado MD3', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
-        const Text('版本: 3.29.0'),
+        const Text('版本: 3.30.0'),
         const SizedBox(height: 4),
         const Text('基于Legado MD3风格的跨平台阅读应用，支持Android和iOS'),
         const Divider(height: 24),

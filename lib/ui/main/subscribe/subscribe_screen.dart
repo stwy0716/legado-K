@@ -9,6 +9,8 @@ import 'package:legado_md3/data/model/rss_article.dart';
 import 'package:legado_md3/ui/rss/rss_read_screen.dart';
 import 'package:legado_md3/ui/rss/rss_source_edit_screen.dart';
 import 'package:legado_md3/ui/rss/rss_favorites_screen.dart';
+import 'package:legado_md3/ui/rss/rss_articles_screen.dart';
+import 'package:legado_md3/ui/rss/rss_source_login_screen.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/http/rss_service.dart';
 
@@ -75,17 +77,6 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
     setState(() => _isLoading = true);
     _sources = await _db.getRssSources();
     _articles = await _db.getRssArticles(_filterSourceUrl);
-    if (mounted) setState(() => _isLoading = false);
-  }
-
-  /// 打开某个订阅源的文章列表（按源过滤）
-  Future<void> _openArticlesOf(RssSource source) async {
-    setState(() {
-      _filterSourceUrl = source.sourceUrl;
-      _showSources = false;
-      _isLoading = true;
-    });
-    _articles = await _db.getRssArticles(source.sourceUrl);
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -235,7 +226,8 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
                 ),
               ],
             ),
-            onTap: () => _openArticlesOf(source),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => RssArticlesScreen(source: source))),
             onLongPress: () => _showSourceOptions(source),
           ),
         );
@@ -307,7 +299,14 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
           ),
           onTap: () async {
             if (article.id != null) await _db.markRssArticleRead(article.id!);
-            if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => RssReadScreen(article: article)));
+            if (mounted) {
+              final src = _sources
+                  .where((s) => s.sourceUrl == article.sourceUrl)
+                  .cast<RssSource?>()
+                  .firstWhere((_) => true, orElse: () => null);
+              await Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => RssReadScreen(article: article, source: src)));
+            }
             _loadData();
           },
           onLongPress: () => _showArticleOptions(article),
@@ -326,8 +325,15 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
             ListTile(
               leading: const Icon(Icons.article_outlined),
               title: const Text('查看文章'),
-              onTap: () { Navigator.pop(context); _openArticlesOf(source); },
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => RssArticlesScreen(source: source))); },
             ),
+            if ((source.loginUrl ?? '').trim().isNotEmpty ||
+                (source.loginUi ?? '').trim().isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.login),
+                title: const Text('登录'),
+                onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => RssSourceLoginScreen(source: source))); },
+              ),
             ListTile(
               leading: const Icon(Icons.refresh),
               title: const Text('刷新'),

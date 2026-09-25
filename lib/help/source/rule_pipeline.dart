@@ -167,7 +167,13 @@ class RulePipeline {
     if (listRule.trim().isEmpty) return root is List ? root : [];
     final first = _splitTop(listRule.trim(), ['||']).first.trim();
     final core = _splitPostProcess(first).selector;
-    return JsonPath.select(root, _stripJsonPrefix(core));
+    final r = JsonPath.select(root, _stripJsonPrefix(core));
+    // `$.data` 直接命中数组字段时，select 会把整个数组作为单个命中值返回；
+    // 列表规则需要的是数组里的每个节点，故展开一层。
+    if (r.length == 1 && r[0] is List) {
+      return List<dynamic>.from(r[0] as List);
+    }
+    return r;
   }
 
   /// 相对一个 JSON item 取字段
@@ -187,7 +193,10 @@ class RulePipeline {
       value = item?.toString();
     } else {
       final v = JsonPath.selectFirst(item, _stripJsonPrefix(parsed.selector));
-      value = v?.toString();
+      // 选中对象/数组时输出合法 JSON，标量转字符串
+      value = v == null
+          ? null
+          : (v is Map || v is List ? jsonEncode(v) : v.toString());
     }
     if (value == null) return null;
     value = _applyPostOps(value, parsed.ops);
@@ -196,6 +205,57 @@ class RulePipeline {
       value = JsMiniEvaluator.eval(tail, result: value, key: keyword, page: page, baseUrl: baseUrl) ?? value;
     }
     return value.isEmpty ? null : value;
+  }
+
+  // ===================== 供异步 JS 引擎复用的公共解析能力 =====================
+
+  /// 解析字段规则为：选择器 / 后处理操作 / 尾部 JS / 是否含 mustache。
+  FieldRuleParts parseFieldParts(String rule) {
+    final p = _splitPostProcess(rule.trim());
+    final ops = <FieldOp>[];
+    for (final op in p.ops) {
+      switch (op.kind) {
+        case _OpKind.remove:
+          ops.add(FieldOp('remove', op.pattern, null));
+          break;
+        case _OpKind.replace:
+          ops.add(FieldOp('replace', op.pattern, op.replacement));
+          break;
+        case _OpKind.match:
+          ops.add(FieldOp('match', op.pattern, null));
+          break;
+      }
+    }
+    return FieldRuleParts(
+      selector: p.selector,
+      ops: ops,
+      tailJs: p.tailJs,
+      hasInterpolation: p.hasInterpolation,
+    );
+  }
+
+  /// 对取到的原始值执行 ## 后处理操作。
+  String applyFieldOps(String value, List<FieldOp> ops) {
+    final internal = ops.map((o) {
+      switch (o.kind) {
+        case 'replace':
+          return _PostOp.replace(o.pattern, o.replacement ?? '');
+        case 'match':
+          return _PostOp.match(o.pattern);
+        default:
+          return _PostOp.remove(o.pattern);
+      }
+    }).toList();
+    return _applyPostOps(value, internal);
+  }
+
+  /// 纯 JSONPath 选择（不含 JS），供引擎在 JS 之外复用。
+  dynamic jsonPathFirst(dynamic node, String selector) {
+    final s = selector.trim();
+    if (s.isEmpty) return node?.toString();
+    final v = JsonPath.selectFirst(node, _stripJsonPrefix(s));
+    if (v == null) return null;
+    return (v is Map || v is List) ? jsonEncode(v) : v.toString();
   }
 
   // ============================== 各模式实现 ==============================
@@ -648,6 +708,27 @@ class _ParsedRule {
   final List<_PostOp> ops = [];
   String? tailJs;
   bool hasInterpolation = false;
+}
+
+/// 字段规则拆解结果（供异步 JS 引擎使用）。
+class FieldRuleParts {
+  FieldRuleParts({
+    required this.selector,
+    required this.ops,
+    this.tailJs,
+    this.hasInterpolation = false,
+  });
+  String selector;
+  final List<FieldOp> ops;
+  String? tailJs;
+  bool hasInterpolation;
+}
+
+class FieldOp {
+  FieldOp(this.kind, this.pattern, this.replacement);
+  final String kind; // remove / replace / match
+  final String pattern;
+  final String? replacement;
 }
 
 enum _OpKind { remove, replace, match }

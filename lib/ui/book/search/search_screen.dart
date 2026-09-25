@@ -333,7 +333,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ],
     ),
     trailing: IconButton(icon: const Icon(Icons.add), onPressed: () => _addToShelf(book), tooltip: '加入书架'),
-    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))),
+    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, bookUrl: book.bookUrl, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))),
     onLongPress: () => _showResultMenu(book),
   );
 
@@ -348,7 +348,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ListTile(
         leading: const Icon(Icons.info_outline),
         title: const Text('查看详情'),
-        onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))); },
+        onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, bookUrl: book.bookUrl, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))); },
       ),
       ListTile(
         leading: const Icon(Icons.add),
@@ -358,7 +358,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ListTile(
         leading: const Icon(Icons.swap_horiz),
         title: const Text('换源'),
-        onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeSourceScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))); },
+        onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeSourceScreen(book: Book(name: book.name, author: book.author, coverUrl: book.coverUrl, intro: book.intro, kind: book.kind, origin: book.origin, bookUrl: book.bookUrl, noteUrl: book.noteUrl, lastChapter: book.lastChapter, local: false)))); },
       ),
       ListTile(
         leading: const Icon(Icons.content_copy),

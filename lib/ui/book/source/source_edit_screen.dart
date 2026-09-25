@@ -6,6 +6,7 @@ import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/http/cookie_manager.dart';
 import 'package:legado_md3/help/source/source_engine.dart';
+import 'package:legado_md3/help/source/js/legado_js_runtime.dart';
 import 'package:legado_md3/help/source/rule_auto_completer.dart';
 import 'package:legado_md3/ui/book/source/source_debug_screen.dart';
 import 'package:legado_md3/ui/browser/browser_screen.dart';
@@ -302,6 +303,8 @@ class _SourceEditScreenState extends State<SourceEditScreen> with SingleTickerPr
       } else {
         await _db.insertSource(source);
       }
+      // 书源脚本（jsLib/loginUrl/规则）变更后，丢弃缓存的 JS 运行时上下文
+      await JsRuntimeManager.instance.invalidate(source.bookSourceUrl);
       _dirty = false;
       if (mounted) _toast('保存成功');
       if (pop && mounted) Navigator.pop(context, true);

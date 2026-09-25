@@ -1,5 +1,19 @@
 # 更新日志
 
+## v3.30.0（真实 JS 引擎 / 书源全链路打通 / 一键调试 / Web 服务）
+- **真实 JavaScript 引擎（核心）**：新增基于无头 WebView(V8) 的 legado 兼容运行时与桥接层，支持现代 JS（模板字符串、let/const、解构、async/Promise、`with(JavaImporter)`、jsLib、loginUrl），并实现 `java.ajax`（同步 XHR，原生接管绕过跨域）、`java.put/get`、`java.base64/hexEncode/Decode`、`java.startBrowser(Await)` 网页登录回收 Cookie、`source.getVariable/setVariable/getLoginInfo(Map)`、`cookie.getCookie/getKey/setCookie/removeCookie`、`cache`、设备号/UA 等；书源变量、登录信息、跨阶段 KV、Cookie 全部持久化。旧迷你求值器作为不可用平台的回退保留。
+- **书源能力对齐原版**：searchUrl/exploreUrl/ruleBookInfo(init)/ruleToc/ruleContent 全阶段支持完整 `<js>`、“前置 `<js>` + 后缀 JSONPath/CSS”、`{{$.x}}` mustache、`@js:`、`URL,{options}`、`data:;base64,<状态>,{选项}` 书址（如大灰狼融合 VIP5.0 的 qingtian/qingtian2/qingtian3）、十六进制响应（非 hex 明文安全原样返回）、图片正文(imageStyle=full)。修复“搜索一搜就空”——根因是 URL 阶段此前完全不执行 JS，把 `<js>` 字面量当网址请求。
+- **书源登录重做**：解析 `loginUi` 动态生成 text/password/button 表单，先求值 `loginUrl` 定义 login/register/logout 等函数，按钮以“字段名→值”为 result 求值，支持 ajax 登录与 `startBrowserAwait` 网页登录回收 Cookie；URL 型 loginUrl 直接开网页；登录后刷新书源变量。
+- **调试改为原版一键全链路**：只保留一个“搜索内容”输入框，点击后顺序跑 搜索→详情→目录→第一章正文，分级彩色日志并附带每步网络/JS 明细。
+- **书源编辑保存后**自动丢弃旧 JS 运行时上下文，jsLib/loginUrl/规则改动即时生效；阅读、详情、书架、本地搜书等所有 getToc/getContent 调用补传 book/chapter 上下文。
+- **Web 服务套用 web-yuedu3**：内置其 Vue 构建产物（assets/web），按 legado 兼容契约实现 `/getBookshelf`、`/getChapterList?url=`、`/getBookContent?url=&index=`，书架/目录/正文在本地无缓存时实时用书源抓取并回写缓存，浏览器可直接在线阅读。
+- **订阅源（RSS）全链路打通 / 界面重做**：把无头 WebView JS 运行时从书源泛化到订阅源（抽出最小接口 `JsSource`，书源/订阅源各自实现）。
+  - 支持 `data:` 逻辑源（如“慕এ~”）、`@js:`/`<js>`/`{{...}}` 的文章列表与正文、`@js` 请求头（动态 `Authorization` 等）、`sortUrl` 分类（`名称::URL`，URL 内 mustache 实时求值）、`loginUi`/`loginUrl` 登录（按钮、网页登录回收 Cookie）、`variableComment` 等。
+  - **AES 加解密**：在运行时内注入 aes-js（MIT），桥接实现 `java.aesBase64DecodeToString/EncodeToString/aesDecode/Encode`（ECB/CBC + PKCS7，同步语义），UTF-8 统一走 TextEncoder/Decoder；已用 Node 以 node:crypto 为独立基准交叉验证 193 组向量（含 FIPS-197、短 key 补零、块边界、emoji）。
+  - 新建「订阅文章列表页」（进入即拉取、分类切换、缩略图、已读/未读、下拉刷新、失败重试并落库）与「订阅源登录页」；重写「阅读页」，ruleContent 实时计算，HTML 正文用 WebView 渲染、纯文本保留字号调节；订阅源点击直达文章列表，长按菜单新增“登录”；编辑保存后丢弃旧运行时。
+  - rss_sources 表补 `variable`、`enabledCookieJar` 列，rss_articles 表补 `image`、`content` 列（含老库迁移）。
+- 已知限制：iOS 下 WebView 无法拦截 https 的 XHR（书源内 ajax 可能受跨域限制，Android 正常）；沙箱无安卓设备，WebView V8 真机行为（同步 XHR、网页登录回收 Cookie、headless 生命周期、HTML 渲染）未能端到端，仅以 Node 向量与 Dart 伪运行时验证编排；`createSymmetricCrypto`(AES 工厂) 原生侧仍抛错（源内 AES 已由注入的 aes-js 支持，书源自动登录回退 putLoginInfo）；`java.connect` 响应头未回填；RSS `articleStyle`(0/1/2) 未细分，正文按“是否 HTML”自动选择 WebView/文本。
+
 ## v3.29.0（全 App 界面走查与缺陷修复）
 对书架、发现、订阅、我的、首页、搜索、书源管理/详情/调试、书籍详情/目录/换源/换封面及各子菜单做了一次系统性走查，修复“假弹窗/只提示不执行/按钮无响应/表单不保存/设置不生效”类问题：
 - **发现（致命修复）**：原实现选中分类后未清空分类列表，构建逻辑又永远优先渲染分类，导致发现的书籍**永远不显示**。重构为「选源 → 选分类 → 书籍列表」三级视图，支持返回、单分类源直达、分页加载、失败重试、下拉刷新。

@@ -11,6 +11,7 @@ import 'package:legado_md3/data/model/book_source.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/ui/book/source/source_edit_screen.dart';
 import 'package:legado_md3/ui/book/source/source_debug_screen.dart';
+import 'package:legado_md3/ui/book/source/source_login_screen.dart';
 
 class SourceManageScreen extends StatefulWidget {
   const SourceManageScreen({super.key});
@@ -82,32 +83,8 @@ class _SourceManageScreenState extends State<SourceManageScreen> {
   }
 
   void _showSourceLogin(BookSource source) {
-    final userController = TextEditingController();
-    final passController = TextEditingController();
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: Text('登录 - ${source.bookSourceName}'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: userController, decoration: const InputDecoration(labelText: '用户名/账号', prefixIcon: Icon(Icons.person_outline))),
-        const SizedBox(height: 12),
-        TextField(controller: passController, obscureText: true, decoration: const InputDecoration(labelText: '密码', prefixIcon: Icon(Icons.lock_outline))),
-        const SizedBox(height: 8),
-        const Text('登录信息将保存到书源变量中', style: TextStyle(fontSize: 11, color: Colors.grey)),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-        FilledButton(onPressed: () async {
-          if (userController.text.isEmpty) return;
-          // 移除旧的登录变量后重新写入，避免重复累积
-          final lines = (source.variable ?? '').split('\n').where((l) {
-            final t = l.trim();
-            return !t.startsWith('loginUser=') && !t.startsWith('loginPwd=');
-          }).join('\n');
-          final extra = '${lines.isEmpty ? '' : '$lines\n'}loginUser=${userController.text}\nloginPwd=${passController.text}';
-          source.variable = extra;
-          await _db.updateSource(source);
-          if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('登录信息已保存'))); }
-        }, child: const Text('登录')),
-      ],
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SourceLoginScreen(source: source),
     ));
   }
 

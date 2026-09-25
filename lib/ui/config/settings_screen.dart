@@ -691,7 +691,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('关于阅读 MD3'),
         content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('版本: 3.29.0'),
+          Text('版本: 3.30.0'),
           SizedBox(height: 8),
           Text('基于Legado MD3风格的跨平台阅读应用'),
           SizedBox(height: 8),

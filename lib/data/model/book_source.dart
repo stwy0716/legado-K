@@ -1,7 +1,9 @@
 import 'dart:convert';
 
+import 'package:legado_md3/help/source/js/js_source.dart';
+
 /// Legado书源模型 - 完全兼容原版JSON格式
-class BookSource {
+class BookSource implements JsSource {
   // 基础信息
   String bookSourceUrl;
   String bookSourceName;
@@ -50,6 +52,15 @@ class BookSource {
   String? variableComment;
   String? jsLib;
   String? variable;
+
+  // ---- JsSource 适配 ----
+  @override
+  String get jsUrl => bookSourceUrl;
+  @override
+  String get jsName => bookSourceName;
+  @override
+  String get jsHttpUrl =>
+      bookSourceUrl.startsWith('http') ? bookSourceUrl : '';
 
   BookSource({
     required this.bookSourceUrl,

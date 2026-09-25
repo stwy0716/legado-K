@@ -6,6 +6,7 @@ import '../../../data/model/rss_source.dart';
 import 'package:legado_md3/data/local/app_database.dart';
 import 'package:legado_md3/help/http/rss_service.dart';
 import 'package:legado_md3/help/source/rule_auto_completer.dart';
+import 'package:legado_md3/help/source/js/legado_js_runtime.dart';
 
 /// RSS源编辑页面 —— 与书源编辑页同款 MD3 卡片式交互（4 分页）。
 /// 字段以“卡片预览 + 点击弹出底部多行编辑器”呈现；顶栏提供 测试 / 保存 / 更多
@@ -200,6 +201,7 @@ class _RssSourceEditScreenState extends State<RssSourceEditScreen>
       } else {
         await _db.updateRssSource(s);
       }
+      await JsRuntimeManager.instance.invalidate(s.sourceUrl);
       _dirty = false;
       if (mounted) {
         _toast('保存成功');

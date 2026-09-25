@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:legado_md3/data/model/book_source.dart';
+import 'package:legado_md3/data/model/search_book.dart';
 import 'package:legado_md3/help/source/source_engine.dart';
 
+/// 书源调试页（对齐 legado）：输入搜索内容后一键跑完整链路
+/// 搜索 → 书籍详情 → 目录 → 第一章正文，统一输出日志。
 class SourceDebugScreen extends StatefulWidget {
   final BookSource source;
 
@@ -11,360 +14,254 @@ class SourceDebugScreen extends StatefulWidget {
   State<SourceDebugScreen> createState() => _SourceDebugScreenState();
 }
 
-class _SourceDebugScreenState extends State<SourceDebugScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final _searchController = TextEditingController();
-  final _bookUrlController = TextEditingController();
-  final _tocUrlController = TextEditingController();
-  final _contentUrlController = TextEditingController();
-  final _exploreUrlController = TextEditingController();
-  final _engine = BookSourceEngine();
-  String _debugLog = '';
-  bool _isLoading = false;
+class _SourceDebugScreenState extends State<SourceDebugScreen> {
+  final _keywordController = TextEditingController();
+  final BookSourceEngine _engine = BookSourceEngine();
+  final List<_LogLine> _logs = [];
+  bool _running = false;
+  double _progress = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
-    // 默认取第一个发现分类的地址，便于直接调试
-    final lines = (widget.source.exploreUrl ?? '').split('\n').where((l) => l.trim().isNotEmpty).toList();
-    if (lines.isNotEmpty) {
-      final firstLine = lines.first;
-      final parts = firstLine.split(':::');
-      _exploreUrlController.text = parts.length == 2 ? parts[1].split('&&&').first.trim() : firstLine.trim();
-    }
+    _keywordController.text = '我的';
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _searchController.dispose();
-    _bookUrlController.dispose();
-    _tocUrlController.dispose();
-    _contentUrlController.dispose();
-    _exploreUrlController.dispose();
+    _keywordController.dispose();
     super.dispose();
   }
 
-  void _log(String message) {
+  void _log(String message, {_LogLevel level = _LogLevel.info}) {
     setState(() {
-      _debugLog += '[${DateTime.now().toString().substring(11, 19)}] $message\n';
+      _logs.add(_LogLine(message, level));
     });
   }
 
-  Future<void> _debugSearch() async {
-    final keyword = _searchController.text.trim();
+  void _dumpEngineLog() {
+    for (final l in _engine.debugLog.toList()) {
+      _log('    $l', level: _LogLevel.detail);
+    }
+    _engine.clearDebugLog();
+  }
+
+  Future<void> _runAll() async {
+    final keyword = _keywordController.text.trim();
     if (keyword.isEmpty) {
-      _log('错误: 请输入搜索关键词');
+      _log('请输入搜索关键词', level: _LogLevel.error);
       return;
     }
-    setState(() => _isLoading = true);
-    _log('开始搜索: $keyword');
-    _log('书源: ${widget.source.bookSourceName} (${widget.source.bookSourceUrl})');
+    setState(() {
+      _running = true;
+      _logs.clear();
+      _progress = 0;
+    });
+    final source = widget.source;
+    _log('===== 开始调试：${source.bookSourceName} =====', level: _LogLevel.stage);
+    _log('书源地址: ${source.bookSourceUrl}');
+
+    SearchBook? firstBook;
     try {
-      final results = await _engine.search(widget.source, keyword);
-      _log('搜索完成，找到 ${results.length} 个结果');
-      for (var i = 0; i < results.length && i < 5; i++) {
+      // 1) 搜索
+      _progress = 0.1;
+      _log('【1/4】搜索「$keyword」…', level: _LogLevel.stage);
+      final results = await _engine.search(source, keyword);
+      _dumpEngineLog();
+      if (results.isEmpty) {
+        _log('搜索结果为空（请检查 searchUrl / 登录 / 规则）', level: _LogLevel.error);
+        _finish(false);
+        return;
+      }
+      _log('搜索到 ${results.length} 本，前 3 本：', level: _LogLevel.ok);
+      for (var i = 0; i < results.length && i < 3; i++) {
         final b = results[i];
-        final intro = b.intro ?? '';
-        _log('  ${i + 1}. ${b.name} - ${b.author}');
-        _log('     简介: ${intro.substring(0, intro.length > 50 ? 50 : intro.length)}');
-        _log('     目录URL: ${b.noteUrl ?? b.bookUrl ?? 'N/A'}');
+        _log('  ${i + 1}. ${b.name} / ${b.author}  bookUrl=${b.bookUrl}');
       }
-      if (results.isNotEmpty) {
-        _bookUrlController.text = results.first.noteUrl ?? results.first.bookUrl ?? '';
-      }
-    } catch (e) {
-      _log('搜索失败: $e');
-    }
-    setState(() => _isLoading = false);
-  }
+      firstBook = results.first;
+      _progress = 0.35;
 
-  Future<void> _debugBookInfo() async {
-    final url = _bookUrlController.text.trim();
-    if (url.isEmpty) {
-      _log('错误: 请输入书籍URL');
-      return;
-    }
-    setState(() => _isLoading = true);
-    _log('开始获取书籍信息: $url');
-    try {
-      final book = await _engine.getBookInfo(widget.source, url);
-      if (book != null) {
-        _log('书名: ${book.name}');
-        _log('作者: ${book.author}');
-        _log('简介: ${book.intro ?? 'N/A'}');
-        _log('分类: ${book.kind ?? 'N/A'}');
-        _log('最新章节: ${book.lastChapter ?? 'N/A'}');
-        _log('封面: ${book.coverUrl ?? 'N/A'}');
-        _log('目录URL: ${book.noteUrl ?? 'N/A'}');
-        _tocUrlController.text = book.noteUrl ?? '';
-      } else {
-        _log('未获取到书籍信息');
+      // 2) 详情
+      final detailUrl = firstBook.bookUrl;
+      if (detailUrl == null || detailUrl.isEmpty) {
+        _log('首本书缺少 bookUrl', level: _LogLevel.error);
+        _finish(false);
+        return;
       }
-    } catch (e) {
-      _log('获取书籍信息失败: $e');
-    }
-    setState(() => _isLoading = false);
-  }
+      _log('【2/4】获取书籍详情：${firstBook.name}', level: _LogLevel.stage);
+      final info = await _engine.getBookInfo(source, detailUrl,
+          presetName: firstBook.name, presetAuthor: firstBook.author);
+      _dumpEngineLog();
+      if (info == null) {
+        _log('详情解析失败（ruleBookInfo）', level: _LogLevel.error);
+        _finish(false);
+        return;
+      }
+      _log('书名: ${info.name}  作者: ${info.author}', level: _LogLevel.ok);
+      _log('分类: ${info.kind}  最新: ${info.lastChapter}');
+      _log('目录地址: ${info.noteUrl}');
+      _progress = 0.6;
 
-  Future<void> _debugToc() async {
-    final url = _tocUrlController.text.trim();
-    if (url.isEmpty) {
-      _log('错误: 请输入目录URL');
-      return;
-    }
-    setState(() => _isLoading = true);
-    _log('开始获取目录: $url');
-    try {
-      final chapters = await _engine.getToc(widget.source, url);
-      _log('目录获取完成，共 ${chapters.length} 章');
-      for (var i = 0; i < chapters.length && i < 10; i++) {
+      // 3) 目录
+      final tocUrl = info.noteUrl ?? detailUrl;
+      _log('【3/4】获取目录…', level: _LogLevel.stage);
+      final chapters = await _engine.getToc(source, tocUrl, bookInfo: {
+        'bookUrl': info.bookUrl ?? detailUrl,
+        'name': info.name,
+        'author': info.author,
+        'tocUrl': tocUrl,
+        'durChapterIndex': 0,
+      });
+      _dumpEngineLog();
+      if (chapters.isEmpty) {
+        _log('目录为空（ruleToc.chapterList）', level: _LogLevel.error);
+        _finish(false);
+        return;
+      }
+      _log('目录共 ${chapters.length} 章，前 3 章：', level: _LogLevel.ok);
+      for (var i = 0; i < chapters.length && i < 3; i++) {
         _log('  ${i + 1}. ${chapters[i].title} -> ${chapters[i].url}');
       }
-      if (chapters.isNotEmpty) {
-        _contentUrlController.text = chapters.first.url;
+      _progress = 0.8;
+
+      // 4) 第一章正文
+      final firstChapter = chapters.firstWhere((c) => c.url.isNotEmpty && !c.isVolume,
+          orElse: () => chapters.first);
+      _log('【4/4】获取正文：${firstChapter.title}', level: _LogLevel.stage);
+      final content = await _engine.getContent(source, firstChapter.url, bookInfo: {
+        'bookUrl': info.bookUrl,
+        'name': info.name,
+        'author': info.author,
+        'tocUrl': info.noteUrl,
+        'durChapterIndex': firstChapter.index,
+      }, chapter: {
+        'index': firstChapter.index,
+        'title': firstChapter.title,
+        'url': firstChapter.url,
+        'bookUrl': info.bookUrl,
+      });
+      _dumpEngineLog();
+      if (content == null || content.trim().isEmpty) {
+        _log('正文为空（ruleContent.content）', level: _LogLevel.error);
+        _finish(false);
+        return;
       }
+      final preview = content.length > 300 ? content.substring(0, 300) : content;
+      _log('正文长度 ${content.length} 字符，预览：', level: _LogLevel.ok);
+      _log(preview, level: _LogLevel.detail);
+
+      _progress = 1;
+      _log('===== 全链路调试通过 ✓ =====', level: _LogLevel.stage);
+      _finish(true);
     } catch (e) {
-      _log('获取目录失败: $e');
+      _dumpEngineLog();
+      _log('调试异常: $e', level: _LogLevel.error);
+      _finish(false);
     }
-    setState(() => _isLoading = false);
   }
 
-  Future<void> _debugContent() async {
-    final url = _contentUrlController.text.trim();
-    if (url.isEmpty) {
-      _log('错误: 请输入正文URL');
-      return;
+  void _finish(bool ok) {
+    if (mounted) setState(() => _running = false);
+  }
+
+  Color _colorOf(_LogLevel level) {
+    switch (level) {
+      case _LogLevel.stage:
+        return const Color(0xFF1565C0);
+      case _LogLevel.ok:
+        return const Color(0xFF2E7D32);
+      case _LogLevel.error:
+        return const Color(0xFFC62828);
+      case _LogLevel.detail:
+        return const Color(0xFF777777);
+      case _LogLevel.info:
+        return const Color(0xFF333333);
     }
-    setState(() => _isLoading = true);
-    _log('开始获取正文: $url');
-    try {
-      final content = await _engine.getContent(widget.source, url);
-      if (content != null) {
-        _log('正文获取完成，长度: ${content.length} 字符');
-        _log('前200字: ${content.substring(0, content.length > 200 ? 200 : content.length)}');
-      } else {
-        _log('未获取到正文内容');
-      }
-    } catch (e) {
-      _log('获取正文失败: $e');
-    }
-    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('调试: ${widget.source.bookSourceName}'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '搜索'),
-            Tab(text: '发现'),
-            Tab(text: '书籍信息'),
-            Tab(text: '目录'),
-            Tab(text: '正文'),
-          ],
-        ),
+        title: Text('调试: ${widget.source.bookSourceName}', maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: '清空日志',
+            onPressed: _running ? null : () => setState(_logs.clear),
+          ),
+        ],
       ),
       body: Column(
         children: [
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
               children: [
-                _buildSearchTab(),
-                _buildExploreTab(),
-                _buildBookInfoTab(),
-                _buildTocTab(),
-                _buildContentTab(),
-              ],
-            ),
-          ),
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('调试日志', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      TextButton(
-                        onPressed: () => setState(() => _debugLog = ''),
-                        child: const Text('清空', style: TextStyle(fontSize: 12)),
-                      ),
-                    ],
-                  ),
-                ),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(8),
-                    child: SelectableText(
-                      _debugLog.isEmpty ? '暂无日志' : _debugLog,
-                      style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                  child: TextField(
+                    controller: _keywordController,
+                    enabled: !_running,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _runAll(),
+                    decoration: const InputDecoration(
+                      labelText: '搜索内容',
+                      hintText: '输入书名/作者，一键调试搜索→详情→目录→正文',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                      prefixIcon: Icon(Icons.search),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: _running ? null : _runAll,
+                  child: _running
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('开始调试'),
+                ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-
-  Widget _buildExploreTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(children: [
-        TextField(
-          controller: _exploreUrlController,
-          decoration: const InputDecoration(labelText: '发现URL（单个分类地址）', border: OutlineInputBorder()),
-          maxLines: 2,
-        ),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(child: FilledButton.icon(
-            onPressed: () => _debugExplore(_exploreUrlController.text.trim()),
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('执行发现'),
-          )),
-        ]),
-      ]),
-    );
-  }
-
-  Future<void> _debugExplore(String url) async {
-    if (url.isEmpty) { _log('错误: 请输入发现URL'); return; }
-    setState(() => _isLoading = true);
-    _log('开始发现: $url');
-    try {
-      final books = await _engine.exploreByUrl(widget.source, url);
-      _log('发现完成，找到 ${books.length} 本书');
-      for (final b in books.take(10)) {
-        _log('  ${b.name} - ${b.author}');
-      }
-    } catch (e) {
-      _log('发现失败: $e');
-    }
-    setState(() => _isLoading = false);
-  }
-
-  Widget _buildSearchTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              labelText: '搜索关键词',
-              hintText: '输入书名或作者',
-              border: OutlineInputBorder(),
+          if (_running) LinearProgressIndicator(value: _progress, minHeight: 2),
+          Expanded(
+            child: Container(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: _logs.isEmpty
+                  ? const Center(child: Text('输入关键词后点击「开始调试」', style: TextStyle(color: Colors.grey)))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(10),
+                      itemCount: _logs.length,
+                      itemBuilder: (_, i) {
+                        final line = _logs[i];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 1),
+                          child: SelectableText(
+                            line.text,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              height: 1.35,
+                              color: _colorOf(line.level),
+                              fontFamily: 'monospace',
+                              fontWeight:
+                                  line.level == _LogLevel.stage ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _isLoading ? null : _debugSearch,
-            icon: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.search),
-            label: const Text('测试搜索'),
-          ),
-          const SizedBox(height: 16),
-          Text('搜索URL: ${widget.source.searchUrl ?? '未配置'}', style: const TextStyle(fontSize: 12)),
-          if (widget.source.ruleSearch != null) ...[
-            const SizedBox(height: 8),
-            Text('规则列表: ${widget.source.ruleSearch!['bookList'] ?? 'N/A'}', style: const TextStyle(fontSize: 12)),
-            Text('规则书名: ${widget.source.ruleSearch!['name'] ?? 'N/A'}', style: const TextStyle(fontSize: 12)),
-            Text('规则作者: ${widget.source.ruleSearch!['author'] ?? 'N/A'}', style: const TextStyle(fontSize: 12)),
-          ],
         ],
       ),
     );
   }
+}
 
-  Widget _buildBookInfoTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _bookUrlController,
-            decoration: const InputDecoration(
-              labelText: '书籍URL',
-              hintText: '输入书籍详情页URL',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _isLoading ? null : _debugBookInfo,
-            icon: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.info_outline),
-            label: const Text('测试书籍信息'),
-          ),
-        ],
-      ),
-    );
-  }
+enum _LogLevel { stage, ok, error, detail, info }
 
-  Widget _buildTocTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _tocUrlController,
-            decoration: const InputDecoration(
-              labelText: '目录URL',
-              hintText: '输入目录页URL',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _isLoading ? null : _debugToc,
-            icon: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.list_alt),
-            label: const Text('测试目录'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContentTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _contentUrlController,
-            decoration: const InputDecoration(
-              labelText: '正文URL',
-              hintText: '输入章节内容页URL',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _isLoading ? null : _debugContent,
-            icon: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.article),
-            label: const Text('测试正文'),
-          ),
-        ],
-      ),
-    );
-  }
+class _LogLine {
+  _LogLine(this.text, this.level);
+  final String text;
+  final _LogLevel level;
 }

@@ -58,7 +58,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
       var noteUrl = widget.book.noteUrl;
       // 没有目录地址时先用书籍详情规则补全
       if ((noteUrl == null || noteUrl.isEmpty) && (widget.book.bookUrl ?? '').isNotEmpty) {
-        final info = await engine.getBookInfo(source, widget.book.bookUrl!);
+        final info = await engine.getBookInfo(source, widget.book.bookUrl!,
+            presetName: widget.book.name, presetAuthor: widget.book.author);
         if (info != null) {
           noteUrl = info.noteUrl ?? noteUrl;
           widget.book.noteUrl = noteUrl;
@@ -67,7 +68,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         }
       }
       if (noteUrl != null && noteUrl.isNotEmpty) {
-        final chapters = await engine.getToc(source, noteUrl);
+        final chapters = await engine.getToc(source, noteUrl,
+            bookInfo: widget.book.jsContext());
         if (chapters.isNotEmpty) {
           await _db.saveChapters(widget.book.name, widget.book.author, chapters);
           _chapters = chapters;
@@ -140,7 +142,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
       var noteUrl = widget.book.noteUrl;
       // 目录地址缺失时先通过书籍详情规则补全
       if ((noteUrl == null || noteUrl.isEmpty) && (widget.book.bookUrl ?? '').isNotEmpty) {
-        final info = await engine.getBookInfo(source, widget.book.bookUrl!);
+        final info = await engine.getBookInfo(source, widget.book.bookUrl!,
+            presetName: widget.book.name, presetAuthor: widget.book.author);
         if (info != null) {
           noteUrl = info.noteUrl ?? noteUrl;
           widget.book.noteUrl = noteUrl;
@@ -151,7 +154,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('无法获取目录地址，请尝试换源')));
         return;
       }
-      final chapters = await engine.getToc(source, noteUrl);
+      final chapters = await engine.getToc(source, noteUrl,
+          bookInfo: widget.book.jsContext());
       if (chapters.isEmpty) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('更新失败：未获取到章节')));
         return;
@@ -185,7 +189,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
       final ch = _chapters[i];
       if (ch.isVolume) continue;
       try {
-        final content = await engine.getContent(source, ch.url);
+        final content = await engine.getContent(source, ch.url,
+            bookInfo: widget.book.jsContext(),
+            chapter: ch.jsContext(widget.book.bookUrl));
         if (content != null && content.isNotEmpty) {
           await _db.updateChapterContent(widget.book.name, widget.book.author, ch.index, content);
           ok++;
