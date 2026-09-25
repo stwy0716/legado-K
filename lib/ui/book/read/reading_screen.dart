@@ -109,8 +109,8 @@ class _ReadingScreenState extends State<ReadingScreen> with SingleTickerProvider
 
   Future<void> _refreshBattery() async {
     try {
-      final level = await _battery.batteryLevel;
-      if (mounted) setState(() => _batteryLevel = level);
+      final int level = await _battery.batteryLevel;
+      if (mounted) setState(() => _batteryLevel = level.toDouble());
     } catch (_) {
       // 不可用时保持 null，UI 回退到静态图标
     }
