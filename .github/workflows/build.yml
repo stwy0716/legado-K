@@ -64,9 +64,9 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > android/release.keystore
+          echo "$KEYSTORE_BASE64" | base64 -d > android/release.p12
           cat > android/key.properties <<EOF
-          storeFile=release.keystore
+          storeFile=release.p12
           storePassword=${STORE_PASSWORD}
           keyAlias=${KEY_ALIAS}
           keyPassword=${KEY_PASSWORD}
