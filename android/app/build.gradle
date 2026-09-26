@@ -26,7 +26,8 @@ if (hasKeystoreConfig) {
     }
 }
 // 兼容 PKCS#12：storeFile 以 .p12/.pfx 结尾时显式声明 storeType（Android Gradle Plugin 原生支持）
-def keyStoreType = (keystoreProperties['storeFile'] || '').toLowerCase().endsWith('.p12') || (keystoreProperties['storeFile'] || '').toLowerCase().endsWith('.pfx') ? 'PKCS12' : null
+def storeFileName = hasKeystoreConfig ? (keystoreProperties.getProperty('storeFile') ?: '') : ''
+def keyStoreType = (storeFileName.toLowerCase().endsWith('.p12') || storeFileName.toLowerCase().endsWith('.pfx')) ? 'PKCS12' : null
 
 android {
     namespace "com.legado.md3"
